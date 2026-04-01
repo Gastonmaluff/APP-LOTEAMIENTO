@@ -6,12 +6,21 @@
   .field-dark {
     @apply w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-brand-300;
   }
+
+  .field-light {
+    @apply w-full rounded-2xl border border-stone-200 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:bg-white;
+  }
+
+  .font-display {
+    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    letter-spacing: -0.02em;
+  }
 }
 
 :root {
   color: #0f172a;
   background: #f8fafc;
-  font-family: "Segoe UI", "Inter", sans-serif;
+  font-family: "Aptos", "Segoe UI", "Trebuchet MS", sans-serif;
 }
 
 html {
@@ -21,6 +30,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
+  background: linear-gradient(180deg, #f4efe7 0%, #f6f8f7 35%, #fbfcfb 100%);
 }
 
 * {

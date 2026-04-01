@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LotData } from "../types/lots";
-import { getFeatureData, getFeatureTypeFromId, statusPalette } from "../utils/mapUtils";
+import { getFeatureData, getFeatureTypeFromId, getStatusLabel, statusPalette } from "../utils/mapUtils";
 
 type TooltipState = {
   x: number;
@@ -9,7 +9,9 @@ type TooltipState = {
 } | null;
 
 type MapViewerProps = {
+  hasHighlightFilter?: boolean;
   lots: LotData[];
+  highlightedLotIds?: string[];
   onActiveChange: (item: LotData | null) => void;
   onHoverChange: (item: LotData | null) => void;
 };
@@ -18,7 +20,13 @@ type LotStatus = NonNullable<LotData["status"]>;
 
 const svgIdSelector = "[id]";
 
-export function MapViewer({ lots, onActiveChange, onHoverChange }: MapViewerProps) {
+export function MapViewer({
+  hasHighlightFilter = false,
+  highlightedLotIds,
+  lots,
+  onActiveChange,
+  onHoverChange
+}: MapViewerProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const svgRootRef = useRef<SVGSVGElement | null>(null);
   const lotsByIdRef = useRef<Map<string, LotData>>(new Map());
@@ -30,6 +38,7 @@ export function MapViewer({ lots, onActiveChange, onHoverChange }: MapViewerProp
   const [error, setError] = useState<string | null>(null);
 
   const lotsById = useMemo(() => new Map(lots.map((item) => [item.id, item])), [lots]);
+  const highlightedLotIdsSet = useMemo(() => new Set(highlightedLotIds ?? []), [highlightedLotIds]);
   const statusesById = useMemo(
     () =>
       new Map(
@@ -215,14 +224,14 @@ export function MapViewer({ lots, onActiveChange, onHoverChange }: MapViewerProp
 
     frame.addEventListener("mouseleave", handleFrameLeave);
     frame.addEventListener("click", handleFrameClick);
-    paintInteractiveNodes(svgRoot, null, null, statusesById);
+    paintInteractiveNodes(svgRoot, null, null, statusesById, highlightedLotIdsSet, hasHighlightFilter);
 
     return () => {
       cleanups.forEach((cleanup) => cleanup());
       frame.removeEventListener("mouseleave", handleFrameLeave);
       frame.removeEventListener("click", handleFrameClick);
     };
-  }, [onActiveChange, onHoverChange, svgMarkup]);
+  }, [hasHighlightFilter, highlightedLotIdsSet, onActiveChange, onHoverChange, svgMarkup]);
 
   useEffect(() => {
     const svgRoot = svgRootRef.current;
@@ -230,8 +239,8 @@ export function MapViewer({ lots, onActiveChange, onHoverChange }: MapViewerProp
       return;
     }
 
-    paintInteractiveNodes(svgRoot, hoveredId, activeId, statusesById);
-  }, [activeId, hoveredId, statusesById]);
+    paintInteractiveNodes(svgRoot, hoveredId, activeId, statusesById, highlightedLotIdsSet, hasHighlightFilter);
+  }, [activeId, hasHighlightFilter, highlightedLotIdsSet, hoveredId, statusesById]);
 
   useEffect(() => {
     if (activeId) {
@@ -253,34 +262,26 @@ export function MapViewer({ lots, onActiveChange, onHoverChange }: MapViewerProp
   }, [activeId, hoveredId, lotsById, onActiveChange, onHoverChange]);
 
   return (
-    <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/80 shadow-soft">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#4f9ea826,transparent_42%),linear-gradient(135deg,#0f172acc,rgba(15,23,42,0.74))]" />
-      <div className="absolute inset-0 bg-grid-fade bg-[size:32px_32px] opacity-20" />
+    <div className="relative overflow-hidden rounded-[34px] border border-stone-200 bg-[linear-gradient(180deg,#fdfcf9_0%,#f5f2ec_100%)] shadow-[0_35px_90px_rgba(15,23,42,0.12)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(79,158,168,0.14),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(32,51,47,0.08),transparent_24%)]" />
+      <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "linear-gradient(to right,#0f172a 1px,transparent 1px), linear-gradient(to bottom,#0f172a 1px,transparent 1px)", backgroundSize: "36px 36px" }} />
 
-      <div className="relative min-h-[520px] p-3 sm:p-4">
+      <div className="relative min-h-[560px] p-3 sm:p-4 lg:p-5">
         {error ? (
-          <div className="flex min-h-[520px] items-center justify-center rounded-[28px] border border-red-500/20 bg-red-500/10 p-6 text-center text-sm text-red-100">
+          <div className="flex min-h-[540px] items-center justify-center rounded-[30px] border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
             {error}
           </div>
         ) : (
-          <div className="relative min-h-[520px] overflow-auto rounded-[28px] border border-white/10 bg-white/95">
-            <div ref={frameRef} className="min-h-[520px] min-w-[760px] p-4 sm:p-6" />
+          <div className="relative min-h-[540px] overflow-auto rounded-[30px] border border-white/70 bg-white/90">
+            <div ref={frameRef} className="min-h-[540px] min-w-[760px] p-4 sm:p-6 lg:p-8" />
             {tooltip ? (
               <div
-                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-sm text-white shadow-soft backdrop-blur"
+                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-[22px] border border-white/80 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur"
                 style={{ left: tooltip.x, top: tooltip.y }}
               >
                 <p className="font-semibold">{tooltip.item.name ?? tooltip.item.id}</p>
-                <p className="mt-1 text-xs text-slate-300">
-                  {tooltip.item.status === "available"
-                    ? "Disponible"
-                    : tooltip.item.status === "reserved"
-                      ? "Reservado"
-                      : tooltip.item.status === "sold"
-                        ? "Vendido"
-                        : tooltip.item.type === "area"
-                          ? "Area informativa"
-                          : "Elemento detectado"}
+                <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">
+                  {getStatusLabel(tooltip.item.status, tooltip.item.type)}
                 </p>
               </div>
             ) : null}
@@ -295,7 +296,9 @@ function paintInteractiveNodes(
   svgRoot: SVGSVGElement,
   hoveredId: string | null,
   activeId: string | null,
-  statusesById: Map<string, LotStatus>
+  statusesById: Map<string, LotStatus>,
+  highlightedLotIdsSet: Set<string>,
+  hasHighlightFilter: boolean
 ) {
   const nodes = Array.from(svgRoot.querySelectorAll<SVGElement>(svgIdSelector));
 
@@ -308,6 +311,7 @@ function paintInteractiveNodes(
     const isHovered = hoveredId === node.id;
     const isActive = activeId === node.id;
     const status = statusesById.get(node.id);
+    const isHighlightedLot = !hasHighlightFilter || highlightedLotIdsSet.has(node.id);
 
     node.style.stroke = isActive ? "#10253c" : isHovered ? "#1d4ed8" : "rgba(15, 23, 42, 0.18)";
     node.style.strokeWidth = featureType === "road" ? "0.45" : isHovered || isActive ? "0.85" : "0.35";
@@ -316,10 +320,12 @@ function paintInteractiveNodes(
 
     if (featureType === "lote") {
       node.style.fill = status ? statusPalette[status] : "#cfe6d7";
-      node.style.opacity = isHovered || isActive ? "1" : "0.96";
+      node.style.opacity = isHovered || isActive ? "1" : isHighlightedLot ? "0.98" : "0.18";
       if (isHovered || isActive) {
         node.style.filter = "brightness(1.05) drop-shadow(0 0 10px rgba(46, 128, 140, 0.34))";
         node.style.transform = "scale(1.015)";
+      } else if (!isHighlightedLot) {
+        node.style.filter = "saturate(0.55)";
       }
       return;
     }

@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
   readonly VITE_ADMIN_ALLOWED_EMAILS?: string;
   readonly VITE_PROJECT_SLUG?: string;
+  readonly VITE_PUBLIC_WHATSAPP_NUMBER?: string;
 }
 
 interface ImportMeta {
