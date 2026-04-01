@@ -11,6 +11,12 @@ export type LotData = {
   deliveryPercent?: number | null;
   installments?: number | null;
   financingText?: string | null;
+  dimensions?: {
+    top?: string | null;
+    right?: string | null;
+    bottom?: string | null;
+    left?: string | null;
+  } | null;
   status?: "available" | "reserved" | "sold" | null;
   description?: string | null;
   sourcePage?: number | null;

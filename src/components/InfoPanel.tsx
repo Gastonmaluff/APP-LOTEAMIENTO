@@ -1,4 +1,5 @@
 import type { LotData } from "../types/lots";
+import { SelectedLotPreview } from "./SelectedLotPreview";
 import {
   formatArea,
   formatInstallments,
@@ -87,6 +88,8 @@ export function InfoPanel({
       </div>
 
       <div className="space-y-6 p-5 sm:p-6">
+        {item.type === "lote" ? <SelectedLotPreview item={item} /> : null}
+
         <div className="grid gap-3 sm:grid-cols-2">
           <Metric label="Manzana" value={item.manzana ?? "Consultar"} />
           <Metric label="Lote" value={item.lotNumber ?? "Consultar"} />
