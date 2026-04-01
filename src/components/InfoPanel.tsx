@@ -25,28 +25,23 @@ export function InfoPanel({
 
   if (!item) {
     return (
-      <aside className="overflow-hidden rounded-[30px] border border-stone-200 bg-white/92 shadow-soft backdrop-blur">
+      <aside className="overflow-hidden rounded-[30px] border border-stone-200 bg-white/94 shadow-soft backdrop-blur">
         <div className="border-b border-stone-100 bg-[linear-gradient(180deg,rgba(244,237,227,0.72),rgba(255,255,255,0.9))] p-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-brand-600">
-              Ficha comercial
-            </p>
-            <h2 className="font-display mt-3 text-[2rem] font-semibold text-slate-900">
-              Seleccioná un lote para ver su propuesta.
-            </h2>
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-brand-600">Ficha del lote</p>
+          <h2 className="font-display mt-3 text-[2rem] font-semibold text-slate-900">
+            Selecciona un lote para ver su informacion.
+          </h2>
         </div>
 
         <div className="space-y-5 p-6">
           <p className="text-sm leading-7 text-slate-600">
-            El mapa sigue siendo el protagonista: pasá el cursor para descubrir disponibilidad y hacé click
-            para fijar la ficha con precio, financiación y datos del lote.
+            Explora el mapa y descubre superficie, precio, estado y opciones de consulta para cada lote.
           </p>
 
           <div className="grid gap-3">
-            <Hint title="Exploración simple" copy="Hover para una vista rápida, click para comparar con calma." />
-            <Hint title="Disponibilidad visible" copy="Los colores reflejan el estado comercial actual del lote." />
-            <Hint title="Consulta inmediata" copy="Desde cada ficha podés ir directo a WhatsApp o solicitar visita." />
+            <Hint title="Disponibilidad clara" copy="Los colores del mapa ayudan a ubicar lotes disponibles, reservados o vendidos." />
+            <Hint title="Informacion comercial" copy="Cada ficha resume lo esencial para comparar y tomar una decision." />
+            <Hint title="Contacto simple" copy="Desde aqui puedes avanzar directo por WhatsApp o solicitar una visita." />
           </div>
         </div>
       </aside>
@@ -73,16 +68,19 @@ export function InfoPanel({
               {getFeatureLabel(item.type)}
             </p>
             <h2 className="font-display mt-3 text-[2.1rem] font-semibold text-slate-900">
-              {item.name ?? item.id}
+              {item.name ?? "Lote seleccionado"}
             </h2>
-            <p className="mt-2 text-sm text-slate-500">{item.id}</p>
+            <p className="mt-2 text-sm text-slate-500">
+              {item.manzana ? `${item.manzana} · lote ${item.lotNumber ?? "-"}` : item.id}
+            </p>
           </div>
+
           <div className="flex flex-col items-end gap-2">
             <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
               {statusLabel}
             </span>
             <span className="rounded-full border border-stone-200 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">
-              {isPersistent ? "Seleccionado" : "Vista rápida"}
+              {isPersistent ? "Seleccionado" : "Vista previa"}
             </span>
           </div>
         </div>
@@ -90,8 +88,8 @@ export function InfoPanel({
 
       <div className="space-y-6 p-6">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Manzana" value={item.manzana ?? "No aplica"} />
-          <Metric label="Lote" value={item.lotNumber ?? "No aplica"} />
+          <Metric label="Manzana" value={item.manzana ?? "Consultar"} />
+          <Metric label="Lote" value={item.lotNumber ?? "Consultar"} />
           <Metric label="Superficie" value={formatArea(item.area)} />
           <Metric label="Precio" value={formatPrice(item.price, item.currency)} />
           <Metric label="Precio final" value={formatPrice(item.finalPrice, item.currency)} />
@@ -101,17 +99,17 @@ export function InfoPanel({
         </div>
 
         <div className="rounded-[24px] border border-stone-200 bg-stone-50/90 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Financiación</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Financiacion</p>
           <p className="mt-3 text-sm leading-7 text-slate-700">
-            {item.financingText ?? "Consultanos para recibir alternativas de financiación y disponibilidad actualizada."}
+            {item.financingText ?? "Consulta las opciones disponibles para este lote con nuestro equipo comercial."}
           </p>
         </div>
 
         <div className="rounded-[24px] bg-slate-950 p-5 text-sm leading-7 text-slate-200">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand-100">Descripción</p>
-          <p className="mt-3">{item.description ?? "Sin descripción comercial adicional por el momento."}</p>
-          <p className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-400">
-            Fuente {item.sourcePage ? `PDF · página ${item.sourcePage}` : "sin referencia PDF"}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand-100">Descripcion</p>
+          <p className="mt-3">
+            {item.description ??
+              "Un espacio pensado para acompanar tu proximo proyecto con informacion clara y acceso simple a consulta."}
           </p>
         </div>
 

@@ -30,7 +30,7 @@ const priceOptions: Array<{ label: string; value: PriceFilter }> = [
   { label: "Todos los precios", value: "all" },
   { label: "Acceso inicial", value: "entry" },
   { label: "Rango medio", value: "mid" },
-  { label: "Selección premium", value: "premium" }
+  { label: "Seleccion premium", value: "premium" }
 ];
 
 export function PublicFilters({
@@ -54,17 +54,15 @@ export function PublicFilters({
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Explorar lotes</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Explora los lotes</p>
             <h2 className="font-display mt-3 text-[2rem] font-semibold text-slate-900">
-              Filtrá la disponibilidad con una vista clara y comercial.
+              Encontra el lote que mejor acompana tu proximo paso.
             </h2>
           </div>
 
           <div className="rounded-[24px] border border-stone-200 bg-stone-50/80 px-4 py-3 text-sm text-slate-600">
-            <p className="font-semibold text-slate-900">{resultCount} resultados visibles</p>
-            <p className="mt-1">
-              {availableCount} disponibles sobre {totalCount} lotes cargados
-            </p>
+            <p className="font-semibold text-slate-900">{resultCount} opciones visibles</p>
+            <p className="mt-1">{availableCount} disponibles de {totalCount} lotes comercializados</p>
           </div>
         </div>
 
@@ -95,8 +93,9 @@ export function PublicFilters({
             value={manzanaFilter}
             onChange={(event) => onManzanaChange(event.target.value)}
             className="field-light"
+            aria-label="Filtrar por manzana"
           >
-            <option value="all">Todas las manzanas</option>
+            <option value="all">Manzana</option>
             {manzanaOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -108,10 +107,11 @@ export function PublicFilters({
             value={currencyFilter}
             onChange={(event) => onCurrencyChange(event.target.value as CurrencyFilter)}
             className="field-light"
+            aria-label="Filtrar por moneda"
           >
             {currencyOptions.map((option) => (
               <option key={option} value={option}>
-                {option === "all" ? "Todas las monedas" : option}
+                {option === "all" ? "Moneda" : option}
               </option>
             ))}
           </select>
@@ -120,6 +120,7 @@ export function PublicFilters({
             value={priceFilter}
             onChange={(event) => onPriceChange(event.target.value as PriceFilter)}
             className="field-light"
+            aria-label="Filtrar por rango de precio"
           >
             {priceOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -133,7 +134,7 @@ export function PublicFilters({
             onClick={onReset}
             className="rounded-2xl border border-stone-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700"
           >
-            Limpiar filtros
+            Ver todo
           </button>
         </div>
       </div>

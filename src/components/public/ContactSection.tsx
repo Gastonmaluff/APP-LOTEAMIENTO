@@ -17,7 +17,7 @@ export function ContactSection({ defaultWhatsAppHref, selectedLot }: ContactSect
     }
 
     setMessage(
-      `Hola, quiero recibir informacion sobre ${selectedLot.name ?? selectedLot.id}. Tambien me interesa coordinar una visita.`
+      `Hola, quiero recibir informacion sobre ${selectedLot.name ?? selectedLot.id} en Viva Lago y coordinar una visita.`
     );
   }, [selectedLot]);
 
@@ -42,20 +42,20 @@ export function ContactSection({ defaultWhatsAppHref, selectedLot }: ContactSect
       id="contacto"
       className="overflow-hidden rounded-[34px] border border-stone-200 bg-[linear-gradient(180deg,#17323d_0%,#223f46_100%)] text-white shadow-[0_35px_90px_rgba(15,23,42,0.14)]"
     >
-      <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(340px,0.95fr)] lg:items-center">
+      <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[minmax(0,0.94fr)_minmax(340px,0.9fr)] lg:items-center">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-brand-200">Contacto</p>
           <h2 className="font-display mt-4 text-[2.4rem] font-semibold leading-tight text-white">
-            Coordiná una consulta simple y seguí avanzando con tu lote.
+            Da el siguiente paso y conoce Viva Lago con atencion personalizada.
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-7 text-slate-200">
-            Si ya encontraste un lote que te interesa, podés continuar por WhatsApp con un mensaje prearmado
-            o dejarnos tu intención de visita dentro del mismo flujo comercial.
+            Te acompanamos con informacion clara sobre disponibilidad, financiacion y coordinacion de visita
+            para que puedas evaluar el proyecto con tranquilidad.
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <TrustPill title="Disponibilidad actualizada" copy="El mapa se alimenta con la misma base vigente del proyecto." />
-            <TrustPill title="Financiación visible" copy="La ficha comercial muestra cuotas, entrega y precio cuando están disponibles." />
+            <TrustPill title="Atencion directa" copy="Contacta por WhatsApp y recibe respuesta rapida sobre lotes de tu interes." />
+            <TrustPill title="Visitas al proyecto" copy="Deja tu consulta preparada para avanzar hacia una visita o reunion comercial." />
           </div>
         </div>
 
@@ -71,21 +71,23 @@ export function ContactSection({ defaultWhatsAppHref, selectedLot }: ContactSect
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               className="field-dark border-white/15 bg-white/10"
-              placeholder="Teléfono o WhatsApp"
+              placeholder="Telefono o WhatsApp"
             />
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               className="field-dark min-h-[150px] border-white/15 bg-white/10"
-              placeholder="Contanos qué lote te interesa o si querés agendar una visita."
+              placeholder="Contanos que lote te interesa o si deseas coordinar una visita."
             />
           </div>
 
           {selectedLot ? (
             <div className="mt-4 rounded-[22px] border border-white/10 bg-white/6 px-4 py-4 text-sm text-slate-200">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-100">Lote de interés</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-100">Lote de interes</p>
               <p className="mt-2 font-semibold text-white">{selectedLot.name ?? selectedLot.id}</p>
-              <p className="mt-1 text-slate-300">{selectedLot.id}</p>
+              <p className="mt-1 text-slate-300">
+                {selectedLot.manzana ?? "Manzana"} · lote {selectedLot.lotNumber ?? "-"}
+              </p>
             </div>
           ) : null}
 
@@ -102,7 +104,7 @@ export function ContactSection({ defaultWhatsAppHref, selectedLot }: ContactSect
               href="#explorar-lotes"
               className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
             >
-              Seguir explorando
+              Ver lotes
             </a>
           </div>
         </div>
