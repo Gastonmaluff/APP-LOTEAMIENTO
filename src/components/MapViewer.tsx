@@ -264,18 +264,15 @@ export function MapViewer({
   }, [activeId, hoveredId, lotsById, onActiveChange, onHoverChange]);
 
   return (
-    <div className="relative overflow-hidden rounded-[34px] border border-stone-200 bg-[linear-gradient(180deg,#fdfcf9_0%,#f5f2ec_100%)] shadow-[0_35px_90px_rgba(15,23,42,0.12)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(79,158,168,0.14),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(32,51,47,0.08),transparent_24%)]" />
-      <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "linear-gradient(to right,#0f172a 1px,transparent 1px), linear-gradient(to bottom,#0f172a 1px,transparent 1px)", backgroundSize: "36px 36px" }} />
-
-      <div className="relative min-h-[560px] p-3 sm:p-4 lg:p-5">
+    <div className="relative mx-auto flex w-full max-w-[1040px] justify-center">
+      <div className="relative min-h-[560px] w-full">
         {error ? (
-          <div className="flex min-h-[540px] items-center justify-center rounded-[30px] border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
+          <div className="flex min-h-[540px] items-center justify-center p-6 text-center text-sm text-red-700">
             {error}
           </div>
         ) : (
-          <div className="relative min-h-[540px] overflow-auto rounded-[30px] border border-white/70 bg-white/90">
-            <div ref={frameRef} className="min-h-[540px] min-w-[760px] p-4 sm:p-6 lg:p-8" />
+          <div className="relative min-h-[540px] overflow-auto">
+            <div ref={frameRef} className="mx-auto min-h-[540px] min-w-[760px] max-w-[1040px] p-2 sm:p-4 lg:p-6" />
             {tooltip ? (
               <div
                 className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-[22px] border border-white/80 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur"

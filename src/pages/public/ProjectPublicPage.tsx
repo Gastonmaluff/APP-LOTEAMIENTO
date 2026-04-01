@@ -346,7 +346,7 @@ export function ProjectPublicPage() {
           </div>
         </section>
 
-        <section id="explorar-lotes" className="bg-[#fbf8f2] py-20">
+        <section id="explorar-lotes" className="bg-[#fbf8f2] py-24">
           <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
             <div className="grid gap-14 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
               <div className="space-y-6">
@@ -394,14 +394,16 @@ export function ProjectPublicPage() {
                   </section>
                 )}
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_390px]">
-                  <MapViewer
-                    hasHighlightFilter={hasActiveFilters}
-                    lots={lots}
-                    highlightedLotIds={highlightedLotIds}
-                    onActiveChange={setActiveItem}
-                    onHoverChange={setHoveredItem}
-                  />
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_390px]">
+                  <div className="flex justify-center">
+                    <MapViewer
+                      hasHighlightFilter={hasActiveFilters}
+                      lots={lots}
+                      highlightedLotIds={highlightedLotIds}
+                      onActiveChange={setActiveItem}
+                      onHoverChange={setHoveredItem}
+                    />
+                  </div>
 
                   <div className="space-y-4 xl:sticky xl:top-28 xl:self-start">
                     <InfoPanel
