@@ -117,6 +117,8 @@ export function MapViewer({
       Boolean(node.id && getFeatureTypeFromId(node.id))
     );
 
+    ensureRoadCenterlineOverlays(svgRoot, nodes);
+
     console.log("[MapViewer] SVG IDs detectados:", {
       totalIds: allDetectedIds.length,
       allIds: allDetectedIds,
@@ -131,10 +133,12 @@ export function MapViewer({
 
       node.style.cursor = featureType === "road" ? "default" : "pointer";
       node.style.transition =
-        "fill 180ms ease, opacity 180ms ease, filter 180ms ease, transform 180ms ease, stroke 180ms ease";
+        "fill 220ms ease, opacity 220ms ease, filter 220ms ease, transform 260ms ease, stroke 220ms ease, stroke-width 220ms ease";
       node.style.transformBox = "fill-box";
       node.style.transformOrigin = "center";
       node.style.vectorEffect = "non-scaling-stroke";
+      node.style.strokeLinejoin = "round";
+      node.style.strokeLinecap = "round";
 
       const handleMouseEnter = (event: Event) => {
         const current = event.currentTarget as SVGElement;
@@ -313,17 +317,24 @@ function paintInteractiveNodes(
     const status = statusesById.get(node.id);
     const isHighlightedLot = !hasHighlightFilter || highlightedLotIdsSet.has(node.id);
 
-    node.style.stroke = isActive ? "#10253c" : isHovered ? "#1d4ed8" : "rgba(15, 23, 42, 0.18)";
-    node.style.strokeWidth = featureType === "road" ? "0.45" : isHovered || isActive ? "0.85" : "0.35";
+    node.style.stroke = isActive ? "#17323d" : isHovered ? "#2f6f7d" : "rgba(59, 76, 90, 0.4)";
+    node.style.strokeWidth = featureType === "road" ? "0.52" : isActive ? "0.96" : isHovered ? "0.72" : "0.5";
     node.style.filter = "none";
     node.style.transform = "scale(1)";
 
     if (featureType === "lote") {
       node.style.fill = status ? statusPalette[status] : "#cfe6d7";
-      node.style.opacity = isHovered || isActive ? "1" : isHighlightedLot ? "0.98" : "0.18";
-      if (isHovered || isActive) {
-        node.style.filter = "brightness(1.05) drop-shadow(0 0 10px rgba(46, 128, 140, 0.34))";
-        node.style.transform = "scale(1.015)";
+      node.style.opacity = isActive ? "1" : isHovered ? "0.995" : isHighlightedLot ? "0.985" : "0.2";
+      if (isActive) {
+        node.style.stroke = "#102a34";
+        node.style.strokeWidth = "1.08";
+        node.style.filter = "brightness(1.03) drop-shadow(0 0 12px rgba(23, 50, 61, 0.24))";
+        node.style.transform = "scale(1.018)";
+      } else if (isHovered) {
+        node.style.stroke = "#3e7b88";
+        node.style.strokeWidth = "0.78";
+        node.style.filter = "brightness(1.015) drop-shadow(0 0 7px rgba(46, 128, 140, 0.18))";
+        node.style.transform = "scale(1.007)";
       } else if (!isHighlightedLot) {
         node.style.filter = "saturate(0.55)";
       }
@@ -331,12 +342,110 @@ function paintInteractiveNodes(
     }
 
     if (featureType === "area") {
-      node.style.fill = isHovered || isActive ? "#8ec3cf" : "#bdd8de";
-      node.style.opacity = isHovered || isActive ? "0.96" : "0.84";
+      node.style.fill = isActive ? "#85b9c4" : isHovered ? "#98c8d1" : "#c9dde1";
+      node.style.stroke = isActive ? "#325f69" : isHovered ? "#578692" : "rgba(77, 108, 117, 0.42)";
+      node.style.strokeWidth = isActive ? "0.82" : isHovered ? "0.66" : "0.48";
+      node.style.opacity = isActive ? "0.97" : isHovered ? "0.94" : "0.9";
+      if (isActive) {
+        node.style.filter = "drop-shadow(0 0 10px rgba(68, 110, 120, 0.16))";
+      }
       return;
     }
 
-    node.style.fill = isHovered ? "#7f8c9d" : "#95a3b8";
-    node.style.opacity = isHovered ? "0.96" : "0.72";
+    node.style.fill = isHovered ? "#8c98ab" : "#98a6b8";
+    node.style.stroke = isHovered ? "rgba(72, 87, 103, 0.54)" : "rgba(86, 100, 116, 0.44)";
+    node.style.strokeWidth = isHovered ? "0.6" : "0.52";
+    node.style.opacity = isHovered ? "0.94" : "0.82";
+    updateRoadCenterlineAppearance(svgRoot, node.id, isHovered);
   });
+}
+
+function ensureRoadCenterlineOverlays(svgRoot: SVGSVGElement, nodes: SVGElement[]) {
+  nodes
+    .filter((node) => getFeatureTypeFromId(node.id) === "road")
+    .forEach((node) => {
+      if (!(node instanceof SVGGraphicsElement)) {
+        return;
+      }
+
+      const existingOverlay = svgRoot.querySelector<SVGGElement>(`g[data-road-centerline-for="${node.id}"]`);
+      if (existingOverlay) {
+        return;
+      }
+
+      const overlayGroup = createRoadCenterlineOverlay(svgRoot, node);
+      if (overlayGroup) {
+        node.parentNode?.appendChild(overlayGroup);
+      }
+    });
+}
+
+function createRoadCenterlineOverlay(svgRoot: SVGSVGElement, roadNode: SVGGraphicsElement) {
+  const bbox = roadNode.getBBox();
+  if (!bbox.width || !bbox.height) {
+    return null;
+  }
+
+  const overlayPath = buildRoadCenterlinePath(bbox);
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  group.dataset.roadCenterlineFor = roadNode.id;
+  group.setAttribute("pointer-events", "none");
+
+  const baseLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  baseLine.setAttribute("d", overlayPath);
+  baseLine.setAttribute("fill", "none");
+  baseLine.setAttribute("stroke", "rgba(52, 63, 77, 0.18)");
+  baseLine.setAttribute("stroke-width", "0.9");
+  baseLine.setAttribute("stroke-linecap", "round");
+  baseLine.setAttribute("stroke-linejoin", "round");
+  baseLine.setAttribute("vector-effect", "non-scaling-stroke");
+
+  const dashedLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  dashedLine.setAttribute("d", overlayPath);
+  dashedLine.setAttribute("fill", "none");
+  dashedLine.setAttribute("stroke", "rgba(255,255,255,0.48)");
+  dashedLine.setAttribute("stroke-width", "0.38");
+  dashedLine.setAttribute("stroke-linecap", "round");
+  dashedLine.setAttribute("stroke-linejoin", "round");
+  dashedLine.setAttribute("stroke-dasharray", "1.2 1.8");
+  dashedLine.setAttribute("vector-effect", "non-scaling-stroke");
+
+  group.appendChild(baseLine);
+  group.appendChild(dashedLine);
+  group.style.transition = "opacity 220ms ease, filter 220ms ease";
+  group.style.opacity = "0.78";
+
+  svgRoot.appendChild(group);
+  return group;
+}
+
+function buildRoadCenterlinePath(bbox: DOMRect) {
+  const { height, width, x, y } = bbox;
+  const cx = x + width / 2;
+  const topArcY = y + height * 0.16;
+  const topArcInset = width * 0.12;
+  const trunkTopY = y + height * 0.17;
+  const trunkBottomY = y + height * 0.82;
+  const bottomArcY = y + height * 0.57;
+  const bottomArcControlY = y + height * 0.75;
+  const bottomArcInset = width * 0.18;
+
+  return [
+    `M ${x + topArcInset} ${topArcY}`,
+    `Q ${cx} ${y + height * 0.03} ${x + width - topArcInset} ${topArcY}`,
+    `M ${cx} ${trunkTopY}`,
+    `L ${cx} ${trunkBottomY}`,
+    `M ${x + bottomArcInset} ${bottomArcY}`,
+    `Q ${cx} ${bottomArcControlY} ${x + width - bottomArcInset} ${bottomArcY}`
+  ].join(" ");
+}
+
+function updateRoadCenterlineAppearance(svgRoot: SVGSVGElement, roadId: string, isHovered: boolean) {
+  const overlay = svgRoot.querySelector<SVGGElement>(`g[data-road-centerline-for="${roadId}"]`);
+  if (!overlay) {
+    return;
+  }
+
+  overlay.style.opacity = isHovered ? "0.98" : "0.78";
+  overlay.style.filter = isHovered ? "drop-shadow(0 0 6px rgba(255,255,255,0.22))" : "none";
 }
