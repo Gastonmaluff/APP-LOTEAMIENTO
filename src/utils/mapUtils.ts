@@ -43,8 +43,7 @@ export function getFeatureData(id: string): LotData | null {
   return {
     id,
     type: inferredType,
-    name: buildFallbackName(id, inferredType),
-    description: "Elemento detectado en el SVG. Sin datos comerciales cargados todavía."
+    description: "Elemento detectado en el SVG. Sin datos comerciales cargados todavia."
   };
 }
 
@@ -58,7 +57,7 @@ export function formatArea(value?: number | string): string {
   }
 
   if (typeof value === "number") {
-    return `${value.toLocaleString("es-PY")} m²`;
+    return `${value.toLocaleString("es-PY")} m2`;
   }
 
   return value;
@@ -86,14 +85,4 @@ export function formatPrice(price?: number | string, currency?: "USD" | "PYG"): 
     currency: "USD",
     maximumFractionDigits: 0
   }).format(price);
-}
-
-function buildFallbackName(id: string, type: FeatureType): string {
-  const cleaned = id
-    .replace(`${type}_`, "")
-    .split("_")
-    .map((part) => part.toUpperCase())
-    .join(" ");
-
-  return `${getFeatureLabel(type)} ${cleaned}`;
 }

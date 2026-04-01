@@ -16,7 +16,7 @@ type MapViewerProps = {
 
 type LotStatus = NonNullable<LotData["status"]>;
 
-const interactiveSelector = "path[id], polygon[id], rect[id], ellipse[id], circle[id]";
+const svgIdSelector = "[id]";
 
 export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -40,8 +40,11 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
 
   useEffect(() => {
     let isMounted = true;
+    const svgUrl = `${import.meta.env.BASE_URL}mapa-loteamiento.svg?ts=${Date.now()}`;
 
-    fetch(`${import.meta.env.BASE_URL}mapa-loteamiento.svg`)
+    fetch(svgUrl, {
+      cache: "no-store"
+    })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`No se pudo cargar el SVG (${response.status}).`);
@@ -91,9 +94,19 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
     onActiveChange(null);
     onHoverChange(null);
 
-    const nodes = Array.from(svgRoot.querySelectorAll<SVGElement>(interactiveSelector)).filter((node) =>
-      Boolean(getFeatureTypeFromId(node.id))
+    const allDetectedIds = Array.from(svgRoot.querySelectorAll<SVGElement>(svgIdSelector))
+      .map((node) => node.id)
+      .filter(Boolean);
+
+    const nodes = Array.from(svgRoot.querySelectorAll<SVGElement>(svgIdSelector)).filter((node) =>
+      Boolean(node.id && getFeatureTypeFromId(node.id))
     );
+
+    console.log("[MapViewer] SVG IDs detectados:", {
+      totalIds: allDetectedIds.length,
+      allIds: allDetectedIds,
+      interactiveIds: nodes.map((node) => node.id)
+    });
 
     const cleanups = nodes.map((node) => {
       const featureType = getFeatureTypeFromId(node.id);
@@ -187,8 +200,8 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
         return;
       }
 
-      const interactiveTarget = target.closest(interactiveSelector);
-      if (!interactiveTarget) {
+      const interactiveTarget = target.closest(svgIdSelector) as SVGElement | null;
+      if (!interactiveTarget || !getFeatureTypeFromId(interactiveTarget.id)) {
         setActiveId(null);
         onActiveChange(null);
       }
@@ -259,7 +272,7 @@ function paintInteractiveNodes(
   activeId: string | null,
   statusesById: Map<string, LotStatus>
 ) {
-  const nodes = Array.from(svgRoot.querySelectorAll<SVGElement>(interactiveSelector));
+  const nodes = Array.from(svgRoot.querySelectorAll<SVGElement>(svgIdSelector));
 
   nodes.forEach((node) => {
     const featureType = getFeatureTypeFromId(node.id);
