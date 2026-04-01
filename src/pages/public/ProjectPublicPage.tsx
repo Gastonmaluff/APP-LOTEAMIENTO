@@ -154,9 +154,9 @@ export function ProjectPublicPage() {
   return (
     <div className="min-h-screen bg-[#f8f4ec] text-slate-900">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/80 bg-white/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-[1.05rem] sm:px-8 lg:px-10 lg:py-[1.15rem]">
           <a href="#inicio" className="flex items-center">
-            <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-8 w-auto sm:h-9 lg:h-10" />
+            <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-11 w-auto object-contain lg:h-[52px]" />
           </a>
 
           <nav className="hidden items-center gap-8 lg:flex">
