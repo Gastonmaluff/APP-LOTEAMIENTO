@@ -153,10 +153,10 @@ export function ProjectPublicPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f4ec] text-slate-900">
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/80 bg-white/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-[1.05rem] sm:px-8 lg:px-10 lg:py-[1.15rem]">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/80 bg-white/94 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-[1.2rem] sm:px-8 lg:px-10 lg:py-[1.35rem]">
           <a href="#inicio" className="flex items-center">
-            <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-11 w-auto object-contain lg:h-[52px]" />
+            <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-[52px] w-auto object-contain lg:h-[64px]" />
           </a>
 
           <nav className="hidden items-center gap-8 lg:flex">
@@ -175,7 +175,7 @@ export function ProjectPublicPage() {
             href={generalWhatsAppHref}
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg bg-[#092930] px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition hover:opacity-90"
+            className="rounded-lg bg-[#092930] px-4.5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white transition hover:opacity-90"
           >
             Consultar
           </a>
