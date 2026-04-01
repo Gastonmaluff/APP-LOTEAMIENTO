@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { InfoPanel } from "./components/InfoPanel";
 import { MapViewer } from "./components/MapViewer";
 import { StatusLegend } from "./components/StatusLegend";
-import { lotsData } from "./data/lotsData";
+import { matchedIds, structuredLotsData, unmatchedLots } from "./data/structuredLotsData";
 import type { LotData } from "./types/lots";
 
 function App() {
@@ -10,13 +10,22 @@ function App() {
   const [hoveredItem, setHoveredItem] = useState<LotData | null>(null);
 
   const metrics = useMemo(() => {
-    const lots = lotsData.filter((item) => item.type === "lote");
+    const lots = structuredLotsData.filter((item) => item.type === "lote");
     return {
       total: lots.length,
       available: lots.filter((item) => item.status === "available").length,
       reserved: lots.filter((item) => item.status === "reserved").length,
       sold: lots.filter((item) => item.status === "sold").length
     };
+  }, []);
+
+  useEffect(() => {
+    const mappedLots = structuredLotsData.filter((item) => item.type === "lote" && matchedIds.includes(item.id));
+    console.log("[structuredLotsData] Resumen PDF -> SVG:", {
+      mappedLotsCount: mappedLots.length,
+      matchedIds,
+      unmatchedLots
+    });
   }, []);
 
   return (
@@ -29,7 +38,7 @@ function App() {
                 MVP interactivo
               </p>
               <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                Loteamiento Viva Lago con mapa SVG interactivo y estados comerciales mock.
+                Loteamiento Viva Lago con mapa SVG interactivo y datos comerciales del PDF.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-brand-50/90 sm:text-base">
                 Base lista para reemplazar los datos manuales por informacion estructurada desde PDF, APIs
@@ -40,7 +49,7 @@ function App() {
             <div className="grid gap-3 rounded-[28px] border border-white/15 bg-slate-950/20 p-4 backdrop-blur">
               <StatusLegend />
               <div className="grid grid-cols-2 gap-3">
-                <MetricCard label="Lotes mock" value={String(metrics.total)} />
+                <MetricCard label="Lotes PDF" value={String(metrics.total)} />
                 <MetricCard label="Disponibles" value={String(metrics.available)} />
                 <MetricCard label="Reservados" value={String(metrics.reserved)} />
                 <MetricCard label="Vendidos" value={String(metrics.sold)} />
@@ -77,7 +86,7 @@ function App() {
               <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
                 <p>
                   La UI consume objetos tipados `LotData`. Cuando extraigamos el PDF, solo tendremos que
-                  transformar esa fuente al mismo contrato y reemplazar `lotsData.ts`.
+                  transformar esa fuente al mismo contrato y reemplazar `structuredLotsData.ts`.
                 </p>
                 <p>
                   El componente del mapa ya decide el comportamiento por prefijo de `id`, asi que la capa de

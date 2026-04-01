@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { lotsData } from "../data/lotsData";
+import { structuredLotsData } from "../data/structuredLotsData";
 import type { LotData } from "../types/lots";
 import { getFeatureData, getFeatureTypeFromId, statusPalette } from "../utils/mapUtils";
 
@@ -31,7 +31,7 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
   const statusesById = useMemo(
     () =>
       new Map(
-        lotsData.flatMap((item) =>
+        structuredLotsData.flatMap((item) =>
           item.type === "lote" && item.status ? ([[item.id, item.status]] as Array<[string, LotStatus]>) : []
         )
       ),

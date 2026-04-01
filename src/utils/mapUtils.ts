@@ -1,4 +1,4 @@
-import { lotsDataById } from "../data/lotsData";
+import { structuredLotsDataById } from "../data/structuredLotsData";
 import type { FeatureType, LotData } from "../types/lots";
 
 export const statusPalette = {
@@ -30,7 +30,7 @@ export function getFeatureTypeFromId(id: string): FeatureType | null {
 }
 
 export function getFeatureData(id: string): LotData | null {
-  const directMatch = lotsDataById.get(id);
+  const directMatch = structuredLotsDataById.get(id);
   if (directMatch) {
     return directMatch;
   }
@@ -51,8 +51,8 @@ export function getFeatureLabel(type: FeatureType): string {
   return labelByType[type];
 }
 
-export function formatArea(value?: number | string): string {
-  if (value === undefined) {
+export function formatArea(value?: number | string | null): string {
+  if (value === undefined || value === null) {
     return "No disponible";
   }
 
@@ -63,8 +63,8 @@ export function formatArea(value?: number | string): string {
   return value;
 }
 
-export function formatPrice(price?: number | string, currency?: "USD" | "PYG"): string {
-  if (price === undefined) {
+export function formatPrice(price?: number | string | null, currency?: "USD" | "PYG" | null): string {
+  if (price === undefined || price === null) {
     return "Consultar";
   }
 
@@ -82,7 +82,7 @@ export function formatPrice(price?: number | string, currency?: "USD" | "PYG"): 
 
   return new Intl.NumberFormat("es-PY", {
     style: "currency",
-    currency: "USD",
+    currency: currency ?? "USD",
     maximumFractionDigits: 0
   }).format(price);
 }
