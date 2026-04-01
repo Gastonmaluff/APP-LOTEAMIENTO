@@ -14,24 +14,34 @@ import type { LotData } from "../../types/lots";
 import { formatPrice, getStatusLabel } from "../../utils/mapUtils";
 
 const whatsappNumber = (import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
+const assetBasePath = import.meta.env.BASE_URL;
 
-const brochureVisuals = [
+const heroImageSrc = `${assetBasePath}images/viva-lago-porteria.png`;
+const logoImageSrc = `${assetBasePath}images/viva-lago-logo.png`;
+const adminImageSrc = `${assetBasePath}images/viva-lago-admin.png`;
+const nauticoImageSrc = `${assetBasePath}images/viva-lago-nautico.png`;
+
+const projectVisuals = [
   {
-    title: "Portada del proyecto",
-    subtitle: "Espacio listo para la imagen principal de Viva Lago.",
-    variant: "hero" as const
-  },
-  {
-    title: "Acceso y entorno",
-    subtitle: "Ideal para mostrar ingreso, paisaje y atmosfera del lugar."
-  },
-  {
+    src: adminImageSrc,
+    alt: "Oficinas administrativas de Viva Lago Country.",
     title: "Administracion",
-    subtitle: "Preparado para destacar el servicio y la recepcion del proyecto."
+    subtitle: "Un acceso sobrio y cuidado para recibir a propietarios e inversores.",
+    variant: "large" as const
   },
   {
-    title: "Club nautico y deportivo",
-    subtitle: "Bloque listo para sumar imagenes reales del area comun."
+    src: heroImageSrc,
+    alt: "Porteria principal de Viva Lago Country.",
+    title: "Porteria",
+    subtitle: "Ingreso jerarquizado con presencia y control.",
+    variant: "small" as const
+  },
+  {
+    src: nauticoImageSrc,
+    alt: "Area nautica y comun de Viva Lago Country frente al agua.",
+    title: "Club nautico y area comun",
+    subtitle: "Un entorno pensado para compartir tiempo, paisaje y servicios.",
+    variant: "small" as const
   }
 ];
 
@@ -142,19 +152,19 @@ export function ProjectPublicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f3ec] text-slate-900">
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/70 bg-[#f8f4ec]/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#f8f4ec] text-slate-900">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/15 bg-[#f8f4ec]/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
-          <a href="#inicio" className="font-display text-2xl font-semibold tracking-tight text-[#092930]">
-            Viva Lago
+          <a href="#inicio" className="flex items-center gap-3 text-[#092930]">
+            <span className="rounded-[14px] border border-stone-200 bg-white/80 p-1.5 shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
+              <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-9 w-9 rounded-[10px] object-cover" />
+            </span>
+            <span className="font-display text-[1.7rem] font-semibold tracking-tight">Viva Lago</span>
           </a>
 
           <nav className="hidden items-center gap-8 lg:flex">
             <a className="text-sm text-slate-600 transition hover:text-[#092930]" href="#proyecto">
               Proyecto
-            </a>
-            <a className="text-sm text-slate-600 transition hover:text-[#092930]" href="#galeria">
-              Galeria
             </a>
             <a className="text-sm text-slate-600 transition hover:text-[#092930]" href="#explorar-lotes">
               Lotes
@@ -175,57 +185,52 @@ export function ProjectPublicPage() {
         </div>
       </header>
 
-      <main className="pb-12 pt-20">
+      <main className="pt-20">
         <section id="inicio" className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.8),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(9,41,48,0.08),transparent_28%)]" />
-          <div className="mx-auto grid min-h-[84vh] max-w-[1440px] gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:px-10 lg:py-10">
-            <div className="relative z-10 flex flex-col justify-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#715b3b]">km 9 Acaray · Ciudad del Este</p>
-              <h1 className="font-display mt-6 max-w-4xl text-[3.2rem] font-semibold leading-[0.96] text-[#092930] sm:text-[4.8rem] lg:text-[6.3rem]">
-                Elegancia junto al agua, pensada para tu proximo proyecto.
-              </h1>
-              <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600">
-                Viva Lago presenta una propuesta inmobiliaria sobria y actual, con administracion, calles internas
-                y un area comun que realza la experiencia del loteamiento.
-              </p>
+          <div className="relative min-h-[88vh]">
+            <img
+              src={heroImageSrc}
+              alt="Porteria principal de Viva Lago Country al atardecer."
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,41,48,0.14),rgba(9,41,48,0.5))]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,244,224,0.18),transparent_36%)]" />
 
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={focusAvailableLots}
-                  className="rounded-lg bg-[#f1d6bf] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#092930] transition hover:translate-y-[-1px]"
-                >
-                  Ver lotes disponibles
-                </button>
-                <a
-                  href={generalWhatsAppHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-lg border border-[#092930]/20 bg-[#092930]/70 px-8 py-3.5 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur transition hover:bg-[#092930]"
-                >
-                  Consultar por WhatsApp
-                </a>
+            <div className="relative z-10 mx-auto flex min-h-[88vh] max-w-[1440px] items-center px-4 sm:px-6 lg:px-10">
+              <div className="max-w-5xl pt-12 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/75">
+                  km 9 Acaray - Ciudad del Este
+                </p>
+                <h1 className="font-display mt-6 max-w-4xl text-[3.1rem] leading-[0.95] drop-shadow-[0_6px_26px_rgba(0,0,0,0.24)] sm:text-[4.8rem] lg:text-[6.2rem]">
+                  Elegancia junto al agua para proyectar con mas amplitud.
+                </h1>
+                <p className="mt-5 max-w-2xl text-base leading-8 text-white/88">
+                  Viva Lago Country combina un acceso jerarquizado, administracion, calles internas y un area comun
+                  frente al agua en una propuesta inmobiliaria pensada para vivir o invertir.
+                </p>
+
+                <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={focusAvailableLots}
+                    className="rounded-lg bg-[#f1d6bf] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#092930] transition hover:translate-y-[-1px]"
+                  >
+                    Ver lotes disponibles
+                  </button>
+                  <a
+                    href={generalWhatsAppHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-white/25 bg-white/10 px-8 py-3.5 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur transition hover:bg-white/16"
+                  >
+                    Consultar por WhatsApp
+                  </a>
+                </div>
               </div>
             </div>
 
-            <div className="relative min-h-[420px] overflow-hidden rounded-[24px] shadow-[0_40px_80px_rgba(9,41,48,0.12)] lg:min-h-[720px]">
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,41,48,0.2),rgba(9,41,48,0.45)),radial-gradient(circle_at_top,rgba(255,242,224,0.24),transparent_40%),linear-gradient(135deg,#4f6a73_0%,#19353c_40%,#7b8965_100%)]" />
-              <div className="absolute inset-x-0 bottom-0 h-48 bg-[linear-gradient(180deg,transparent_0%,rgba(9,41,48,0.2)_40%,rgba(9,41,48,0.48)_100%)]" />
-              <div className="absolute inset-x-6 top-6 flex items-start justify-between">
-                <div className="rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-white backdrop-blur">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">Imagen principal</p>
-                  <p className="mt-2 text-sm font-medium">Espacio listo para tu render o foto IA</p>
-                </div>
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75 backdrop-blur">
-                  Logo
-                </div>
-              </div>
-              <div className="absolute bottom-8 left-8 right-8 text-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/65">Viva Lago</p>
-                <p className="mt-3 max-w-xs text-sm leading-7 text-white/85">
-                  Reemplaza este bloque por la imagen hero cuando me pases los assets finales.
-                </p>
-              </div>
+            <div className="absolute bottom-8 right-4 z-10 hidden rounded-[20px] border border-white/20 bg-[#2a2a2a]/70 p-3 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur sm:right-6 sm:block lg:right-10">
+              <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-20 w-auto rounded-[14px] object-contain" />
             </div>
           </div>
         </section>
@@ -240,25 +245,25 @@ export function ProjectPublicPage() {
         </section>
 
         <section id="proyecto" className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 lg:px-10">
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-center">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">El proyecto</p>
               <h2 className="font-display mt-5 text-[2.8rem] leading-tight text-[#092930]">
-                Una propuesta inmobiliaria presentada como brochure comercial.
+                Una propuesta residencial con presencia, orden y una experiencia visual real.
               </h2>
               <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600">
-                Viva Lago combina un trazado claro con una presentacion elegante para que puedas evaluar lotes,
-                disponibilidad y formas de contacto en una sola experiencia.
+                Viva Lago Country presenta una identidad clara desde la porteria hasta sus areas comunes, con una
+                lectura comercial limpia para descubrir lotes y avanzar hacia una consulta personalizada.
               </p>
 
               <div className="mt-8 grid gap-6">
                 <ProjectPoint
                   title="Administracion"
-                  copy="Una estructura preparada para acompanar la atencion y el funcionamiento del loteamiento."
+                  copy="Una recepcion moderna y organizada para el acompanamiento cotidiano del proyecto."
                 />
                 <ProjectPoint
                   title="Calles internas"
-                  copy="Circulacion clara dentro del trazado, integrada visualmente al mapa general del proyecto."
+                  copy="Un trazado claro que se integra con el mapa interactivo y ayuda a ubicar cada lote."
                 />
                 <ProjectPoint
                   title={
@@ -266,18 +271,20 @@ export function ProjectPublicPage() {
                       ? "Club nautico y deportivo"
                       : "Area comun destacada"
                   }
-                  copy="Un sector comun que suma valor a la propuesta y fortalece la identidad del proyecto."
+                  copy="Un espacio frente al agua preparado para sumar vida social, paisaje y valor al desarrollo."
                 />
               </div>
             </div>
 
-            <div id="galeria" className="grid gap-4 sm:grid-cols-2">
-              {brochureVisuals.map((item) => (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {projectVisuals.map((item) => (
                 <VisualPanel
                   key={item.title}
+                  src={item.src}
+                  alt={item.alt}
                   title={item.title}
                   subtitle={item.subtitle}
-                  variant={item.variant ?? "default"}
+                  variant={item.variant}
                 />
               ))}
             </div>
@@ -305,7 +312,7 @@ export function ProjectPublicPage() {
               <BenefitCard
                 eyebrow="Disponibilidad"
                 title="Visual y actual"
-                copy="El mapa te ayuda a distinguir rapidamente opciones disponibles, reservadas o vendidas."
+                copy="El mapa ayuda a distinguir rapidamente opciones disponibles, reservadas o vendidas."
               />
               <BenefitCard
                 eyebrow="Exploracion"
@@ -327,7 +334,12 @@ export function ProjectPublicPage() {
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {curatedLots.length > 0 ? (
               curatedLots.map((item, index) => (
-                <LotShowcaseCard key={item.id} item={item} badgeLabel={index === 0 ? "Disponible" : getStatusLabel(item.status, item.type)} />
+                <LotShowcaseCard
+                  key={item.id}
+                  item={item}
+                  imageSrc={index === 0 ? heroImageSrc : index === 1 ? adminImageSrc : nauticoImageSrc}
+                  badgeLabel={index === 0 ? "Disponible" : getStatusLabel(item.status, item.type)}
+                />
               ))
             ) : (
               <div className="col-span-full rounded-[24px] border border-stone-200 bg-white p-6 text-sm leading-7 text-slate-600 shadow-soft">
@@ -342,7 +354,9 @@ export function ProjectPublicPage() {
             <div className="grid gap-14 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">Explora los lotes disponibles</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">
+                    Explora los lotes disponibles
+                  </p>
                   <h2 className="font-display mt-4 text-[2.8rem] leading-tight text-[#092930]">
                     El mapa te ayuda a ubicar cada oportunidad con claridad.
                   </h2>
@@ -355,7 +369,7 @@ export function ProjectPublicPage() {
 
                 <div className="space-y-3 text-sm leading-7 text-slate-600">
                   <p>Filtra por estado, manzana, moneda o rango de precio para concentrarte en las opciones que mas te interesan.</p>
-                  <p>Si no ves lo que buscas, puedes reiniciar los filtros y volver a recorrer todo el loteamiento.</p>
+                  <p>Si no ves lo que buscas, reinicia los filtros y vuelve a recorrer todo el loteamiento.</p>
                 </div>
               </div>
 
@@ -407,6 +421,24 @@ export function ProjectPublicPage() {
         </section>
 
         <ContactSection defaultWhatsAppHref={buildWhatsAppBaseHref()} selectedLot={activeItem} />
+
+        <footer className="border-t border-stone-200 bg-[#0d2830]">
+          <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-10 text-white sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-10">
+            <div className="flex items-center gap-4">
+              <span className="rounded-[16px] bg-white/10 p-2">
+                <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-12 w-12 rounded-[12px] object-cover" />
+              </span>
+              <div>
+                <p className="font-display text-[1.9rem] leading-none">Viva Lago</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.24em] text-white/55">km 9 Acaray - Ciudad del Este</p>
+              </div>
+            </div>
+
+            <div className="text-sm leading-7 text-white/65">
+              <p>Explora lotes, consulta financiacion y coordina una visita con nuestro equipo comercial.</p>
+            </div>
+          </div>
+        </footer>
       </main>
     </div>
   );
@@ -431,34 +463,30 @@ function ProjectPoint({ copy, title }: { copy: string; title: string }) {
 }
 
 function VisualPanel({
+  alt,
+  src,
   subtitle,
   title,
   variant
 }: {
+  alt: string;
+  src: string;
   subtitle: string;
   title: string;
-  variant: "default" | "hero";
+  variant: "large" | "small";
 }) {
-  const className =
-    variant === "hero"
-      ? "sm:col-span-2 min-h-[340px]"
-      : "min-h-[190px]";
+  const className = variant === "large" ? "sm:row-span-2 min-h-[420px]" : "min-h-[204px]";
 
   return (
     <article
-      className={`overflow-hidden rounded-[18px] border border-stone-200 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.05)] ${className}`}
+      className={`group relative overflow-hidden rounded-[18px] border border-stone-200 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.05)] ${className}`}
     >
-      <div className="flex h-full flex-col justify-between bg-[radial-gradient(circle_at_top_right,rgba(79,158,168,0.1),transparent_35%),linear-gradient(180deg,#f8f4ec_0%,#f0ece5_100%)] p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#715b3b]">Galeria del proyecto</p>
-            <h3 className="font-display mt-3 text-[1.8rem] text-[#092930]">{title}</h3>
-          </div>
-          <div className="rounded-lg border border-dashed border-stone-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Imagen
-          </div>
-        </div>
-        <p className="mt-8 max-w-sm text-sm leading-7 text-slate-600">{subtitle}</p>
+      <img src={src} alt={alt} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,41,48,0.06),rgba(9,41,48,0.46))]" />
+      <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">Galeria del proyecto</p>
+        <h3 className="font-display mt-3 text-[1.7rem] leading-tight">{title}</h3>
+        <p className="mt-3 max-w-sm text-sm leading-7 text-white/85">{subtitle}</p>
       </div>
     </article>
   );
@@ -474,17 +502,23 @@ function BenefitCard({ copy, eyebrow, title }: { copy: string; eyebrow: string; 
   );
 }
 
-function LotShowcaseCard({ badgeLabel, item }: { badgeLabel: string; item: LotData }) {
+function LotShowcaseCard({
+  badgeLabel,
+  imageSrc,
+  item
+}: {
+  badgeLabel: string;
+  imageSrc: string;
+  item: LotData;
+}) {
   return (
     <article className="overflow-hidden rounded-[18px] border border-stone-200 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.05)] transition hover:-translate-y-1">
-      <div className="relative h-64 overflow-hidden bg-[linear-gradient(135deg,#d2d9d7_0%,#6b7f67_50%,#d7c4ac_100%)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.2),transparent_38%),linear-gradient(180deg,transparent_0%,rgba(9,41,48,0.18)_100%)]" />
-        <span className="absolute left-4 top-4 rounded-md bg-white/85 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#092930]">
+      <div className="relative h-64 overflow-hidden">
+        <img src={imageSrc} alt={`Vista asociada a ${item.name ?? item.id}.`} className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(9,41,48,0.28)_100%)]" />
+        <span className="absolute left-4 top-4 rounded-md bg-white/88 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#092930]">
           {badgeLabel}
         </span>
-        <div className="absolute bottom-4 left-4 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur">
-          Espacio listo para imagen IA
-        </div>
       </div>
 
       <div className="p-6">
