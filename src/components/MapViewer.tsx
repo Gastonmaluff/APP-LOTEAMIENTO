@@ -98,9 +98,12 @@ export function MapViewer({
 
     svgRootRef.current = svgRoot;
     svgRoot.setAttribute("width", "100%");
-    svgRoot.setAttribute("height", "100%");
     svgRoot.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svgRoot.removeAttribute("height");
     svgRoot.style.display = "block";
+    svgRoot.style.width = "100%";
+    svgRoot.style.height = "auto";
+    svgRoot.style.maxWidth = "100%";
     svgRoot.style.overflow = "visible";
 
     setHoveredId(null);
@@ -271,17 +274,17 @@ export function MapViewer({
 
   return (
     <div className="relative mx-auto flex w-full max-w-[1040px] justify-center">
-      <div className="relative min-h-[560px] w-full">
+      <div className="relative w-full max-w-full">
         {error ? (
-          <div className="flex min-h-[540px] items-center justify-center p-6 text-center text-sm text-red-700">
+          <div className="flex min-h-[360px] items-center justify-center p-6 text-center text-sm text-red-700 sm:min-h-[440px]">
             {error}
           </div>
         ) : (
-          <div className="relative min-h-[540px] overflow-auto">
-            <div ref={frameRef} className="mx-auto min-h-[540px] min-w-[760px] max-w-[1040px] p-2 sm:p-4 lg:p-6" />
+          <div className="relative w-full max-w-full overflow-visible">
+            <div ref={frameRef} className="mx-auto w-full max-w-[1040px] px-0 py-2 sm:px-2 sm:py-4 lg:px-4 lg:py-6" />
             {tooltip ? (
               <div
-                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-[22px] border border-white/80 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur"
+                className="pointer-events-none absolute z-10 hidden max-w-[220px] -translate-x-1/2 -translate-y-full rounded-[22px] border border-white/80 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur sm:block"
                 style={{ left: tooltip.x, top: tooltip.y }}
               >
                 <p className="font-semibold">{tooltip.item.name ?? tooltip.item.id}</p>

@@ -50,17 +50,17 @@ export function PublicFilters({
   totalCount
 }: PublicFiltersProps) {
   return (
-    <section className="rounded-[30px] border border-stone-200 bg-white/88 p-5 shadow-soft backdrop-blur sm:p-6">
+    <section className="w-full max-w-full overflow-hidden rounded-[30px] border border-stone-200 bg-white/88 p-4 shadow-soft backdrop-blur sm:p-6">
       <div className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Explora los lotes</p>
-            <h2 className="font-display mt-3 text-[2rem] font-semibold text-slate-900">
+            <h2 className="font-display mt-3 text-[1.6rem] font-semibold leading-tight text-slate-900 sm:text-[2rem]">
               Encontra el lote que mejor acompana tu proximo paso.
             </h2>
           </div>
 
-          <div className="rounded-[24px] border border-stone-200 bg-stone-50/80 px-4 py-3 text-sm text-slate-600">
+          <div className="w-full rounded-[24px] border border-stone-200 bg-stone-50/80 px-4 py-3 text-sm text-slate-600 sm:w-auto">
             <p className="font-semibold text-slate-900">{resultCount} opciones visibles</p>
             <p className="mt-1">{availableCount} disponibles de {totalCount} lotes comercializados</p>
           </div>
@@ -88,7 +88,7 @@ export function PublicFilters({
           })}
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]">
+        <div className="grid w-full max-w-full gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <select
             value={manzanaFilter}
             onChange={(event) => onManzanaChange(event.target.value)}

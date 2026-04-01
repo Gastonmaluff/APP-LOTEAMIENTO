@@ -152,7 +152,7 @@ export function ProjectPublicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f4ec] text-slate-900">
+    <div className="min-h-screen overflow-x-hidden bg-[#f8f4ec] text-slate-900">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/80 bg-white/94 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-[1.2rem] sm:px-8 lg:px-10 lg:py-[1.35rem]">
           <a href="#inicio" className="flex items-center">
@@ -346,7 +346,7 @@ export function ProjectPublicPage() {
           </div>
         </section>
 
-        <section id="explorar-lotes" className="bg-[#fbf8f2] py-24">
+        <section id="explorar-lotes" className="bg-[#fbf8f2] py-20 sm:py-24">
           <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
             <div className="grid gap-14 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
               <div className="space-y-6">
@@ -354,7 +354,7 @@ export function ProjectPublicPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">
                     Explora los lotes disponibles
                   </p>
-                  <h2 className="font-display mt-4 text-[2.8rem] leading-tight text-[#092930]">
+                  <h2 className="font-display mt-4 text-[2rem] leading-tight text-[#092930] sm:text-[2.3rem] lg:text-[2.8rem]">
                     El mapa te ayuda a ubicar cada oportunidad con claridad.
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-600">
@@ -370,7 +370,7 @@ export function ProjectPublicPage() {
                 </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="min-w-0 space-y-6">
                 <PublicFilters
                   availableCount={metrics.available}
                   currencyFilter={currencyFilter}
@@ -395,7 +395,7 @@ export function ProjectPublicPage() {
                 )}
 
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_390px]">
-                  <div className="flex justify-center">
+                  <div className="min-w-0 overflow-hidden">
                     <MapViewer
                       hasHighlightFilter={hasActiveFilters}
                       lots={lots}
@@ -405,7 +405,7 @@ export function ProjectPublicPage() {
                     />
                   </div>
 
-                  <div className="space-y-4 xl:sticky xl:top-28 xl:self-start">
+                  <div className="w-full min-w-0 space-y-4 xl:sticky xl:top-28 xl:self-start">
                     <InfoPanel
                       activeItem={activeItem}
                       hoveredItem={hoveredItem}

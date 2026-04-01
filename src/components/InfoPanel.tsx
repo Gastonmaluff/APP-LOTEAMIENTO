@@ -25,15 +25,15 @@ export function InfoPanel({
 
   if (!item) {
     return (
-      <aside className="overflow-hidden rounded-[30px] border border-stone-200 bg-white/94 shadow-soft backdrop-blur">
-        <div className="border-b border-stone-100 bg-[linear-gradient(180deg,rgba(244,237,227,0.72),rgba(255,255,255,0.9))] p-6">
+      <aside className="w-full max-w-full overflow-hidden rounded-[30px] border border-stone-200 bg-white/94 shadow-soft backdrop-blur">
+        <div className="border-b border-stone-100 bg-[linear-gradient(180deg,rgba(244,237,227,0.72),rgba(255,255,255,0.9))] p-5 sm:p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-brand-600">Ficha del lote</p>
-          <h2 className="font-display mt-3 text-[2rem] font-semibold text-slate-900">
+          <h2 className="font-display mt-3 text-[1.7rem] font-semibold leading-tight text-slate-900 sm:text-[2rem]">
             Selecciona un lote para ver su informacion.
           </h2>
         </div>
 
-        <div className="space-y-5 p-6">
+        <div className="space-y-5 p-5 sm:p-6">
           <p className="text-sm leading-7 text-slate-600">
             Explora el mapa y descubre superficie, precio, estado y opciones de consulta para cada lote.
           </p>
@@ -60,22 +60,22 @@ export function InfoPanel({
           : "border-slate-200 bg-slate-100 text-slate-600";
 
   return (
-    <aside className="overflow-hidden rounded-[30px] border border-stone-200 bg-white/96 shadow-soft backdrop-blur">
-      <div className="border-b border-stone-100 bg-[linear-gradient(180deg,rgba(248,244,236,0.9),rgba(255,255,255,0.9))] p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+    <aside className="w-full max-w-full overflow-hidden rounded-[30px] border border-stone-200 bg-white/96 shadow-soft backdrop-blur">
+      <div className="border-b border-stone-100 bg-[linear-gradient(180deg,rgba(248,244,236,0.9),rgba(255,255,255,0.9))] p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-brand-600">
               {getFeatureLabel(item.type)}
             </p>
-            <h2 className="font-display mt-3 text-[2.1rem] font-semibold text-slate-900">
+            <h2 className="font-display mt-3 break-words text-[1.75rem] font-semibold leading-tight text-slate-900 sm:text-[2.1rem]">
               {item.name ?? "Lote seleccionado"}
             </h2>
             <p className="mt-2 text-sm text-slate-500">
-              {item.manzana ? `${item.manzana} · lote ${item.lotNumber ?? "-"}` : item.id}
+              {item.manzana ? `${item.manzana} - lote ${item.lotNumber ?? "-"}` : item.id}
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-start gap-2 sm:items-end">
             <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
               {statusLabel}
             </span>
@@ -86,7 +86,7 @@ export function InfoPanel({
         </div>
       </div>
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-5 sm:p-6">
         <div className="grid gap-3 sm:grid-cols-2">
           <Metric label="Manzana" value={item.manzana ?? "Consultar"} />
           <Metric label="Lote" value={item.lotNumber ?? "Consultar"} />

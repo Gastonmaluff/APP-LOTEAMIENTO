@@ -25,12 +25,18 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   background: linear-gradient(180deg, #f4efe7 0%, #f6f8f7 35%, #fbfcfb 100%);
+  overflow-x: hidden;
+}
+
+#root {
+  overflow-x: hidden;
 }
 
 * {
