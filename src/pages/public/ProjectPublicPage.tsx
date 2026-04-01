@@ -347,8 +347,8 @@ export function ProjectPublicPage() {
         </section>
 
         <section id="explorar-lotes" className="bg-[#fbf8f2] py-20 sm:py-24">
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
-            <div className="grid gap-14 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10">
+            <div className="grid gap-12 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start xl:gap-14">
               <div className="space-y-6">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">
@@ -394,7 +394,7 @@ export function ProjectPublicPage() {
                   </section>
                 )}
 
-                <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_390px]">
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1.7fr)_340px]">
                   <div className="min-w-0 overflow-hidden">
                     <MapViewer
                       hasHighlightFilter={hasActiveFilters}
