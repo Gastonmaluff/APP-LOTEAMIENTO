@@ -12,7 +12,13 @@ const labelByType: Record<FeatureType, string> = {
   road: "Camino"
 };
 
+const decorativeAreaIds = new Set(["area_lago", "area_acceso"]);
+
 export function getFeatureTypeFromId(id: string): FeatureType | null {
+  if (decorativeAreaIds.has(id)) {
+    return null;
+  }
+
   if (id.startsWith("lote_")) {
     return "lote";
   }

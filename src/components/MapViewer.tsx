@@ -19,9 +19,6 @@ type MapViewerProps = {
 type LotStatus = NonNullable<LotData["status"]>;
 
 const svgIdSelector = "[id]";
-const decorLayerId = "decor_editorial_context";
-const decorRiverPath = "m 48.952028,296.90748 23.669792,-41.51953 59.81668,-67.25154 78.04453,-44.87816 -0.51899,153.98754 z";
-const decorAccessPath = "M 27.987656,57.399834 72.734389,56.897062 72.901981,44.998117 26.47934,46.338845 Z";
 
 export function MapViewer({
   hasHighlightFilter = false,
@@ -122,9 +119,6 @@ export function MapViewer({
     const nodes = Array.from(svgRoot.querySelectorAll<SVGElement>(svgIdSelector)).filter((node) =>
       Boolean(node.id && getFeatureTypeFromId(node.id))
     );
-
-    const decorLayer = ensureEditorialContext(svgRoot);
-    fitSvgToContent(svgRoot, nodes, decorLayer);
 
     console.log("[MapViewer] SVG IDs detectados:", {
       totalIds: allDetectedIds.length,
@@ -361,104 +355,4 @@ function paintInteractiveNodes(
     node.style.strokeWidth = isHovered ? "0.96" : "0.88";
     node.style.opacity = isHovered ? "0.96" : "0.92";
   });
-}
-
-function ensureEditorialContext(svgRoot: SVGSVGElement) {
-  const existingLayer = svgRoot.querySelector<SVGGElement>(`#${decorLayerId}`);
-  if (existingLayer) {
-    return existingLayer;
-  }
-
-  const layer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  layer.setAttribute("id", decorLayerId);
-  layer.setAttribute("pointer-events", "none");
-  layer.style.pointerEvents = "none";
-
-  const river = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  river.setAttribute("d", decorRiverPath);
-  river.setAttribute("fill", "#335766");
-  river.setAttribute("opacity", "0.16");
-  river.setAttribute("stroke", "#3f6773");
-  river.setAttribute("stroke-opacity", "0.2");
-  river.setAttribute("stroke-width", "0.2");
-
-  const riverLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  riverLabel.setAttribute("x", "121");
-  riverLabel.setAttribute("y", "273");
-  riverLabel.setAttribute("fill", "#31515d");
-  riverLabel.setAttribute("opacity", "0.46");
-  riverLabel.setAttribute("font-size", "5.2");
-  riverLabel.setAttribute("letter-spacing", "0.18em");
-  riverLabel.setAttribute("text-anchor", "middle");
-  riverLabel.setAttribute("font-family", "Book Antiqua, Palatino Linotype, serif");
-  riverLabel.textContent = "ACARAY";
-
-  const access = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  access.setAttribute("d", decorAccessPath);
-  access.setAttribute("fill", "#74828a");
-  access.setAttribute("opacity", "0.18");
-  access.setAttribute("stroke", "#66747b");
-  access.setAttribute("stroke-opacity", "0.14");
-  access.setAttribute("stroke-width", "0.18");
-
-  const accessLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  accessLabel.setAttribute("x", "49.8");
-  accessLabel.setAttribute("y", "53.2");
-  accessLabel.setAttribute("fill", "#f7f3ed");
-  accessLabel.setAttribute("opacity", "0.56");
-  accessLabel.setAttribute("font-size", "4.1");
-  accessLabel.setAttribute("letter-spacing", "0.12em");
-  accessLabel.setAttribute("text-anchor", "middle");
-  accessLabel.setAttribute("font-family", "Book Antiqua, Palatino Linotype, serif");
-  accessLabel.textContent = "Acceso";
-
-  layer.appendChild(river);
-  layer.appendChild(riverLabel);
-  layer.appendChild(access);
-  layer.appendChild(accessLabel);
-
-  svgRoot.insertBefore(layer, svgRoot.firstChild);
-  return layer;
-}
-
-function fitSvgToContent(svgRoot: SVGSVGElement, nodes: SVGElement[], decorLayer: SVGGElement) {
-  const graphicNodes = nodes.filter(isGraphicsNode);
-  if (graphicNodes.length === 0) {
-    return;
-  }
-
-  const bounds = [
-    ...graphicNodes.map((node) => node.getBBox()),
-    decorLayer.getBBox()
-  ];
-
-  const merged = bounds.reduce(
-    (acc, current) => ({
-      x: Math.min(acc.x, current.x),
-      y: Math.min(acc.y, current.y),
-      maxX: Math.max(acc.maxX, current.x + current.width),
-      maxY: Math.max(acc.maxY, current.y + current.height)
-    }),
-    {
-      x: bounds[0].x,
-      y: bounds[0].y,
-      maxX: bounds[0].x + bounds[0].width,
-      maxY: bounds[0].y + bounds[0].height
-    }
-  );
-
-  const paddingX = 10;
-  const paddingTop = 10;
-  const paddingBottom = 8;
-  const width = merged.maxX - merged.x;
-  const height = merged.maxY - merged.y;
-
-  svgRoot.setAttribute(
-    "viewBox",
-    `${merged.x - paddingX} ${merged.y - paddingTop} ${width + paddingX * 2} ${height + paddingTop + paddingBottom}`
-  );
-}
-
-function isGraphicsNode(node: SVGElement): node is SVGGraphicsElement {
-  return "getBBox" in node;
 }
