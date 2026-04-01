@@ -4,6 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Viva Lago | Mapa interactivo</title>
+    <script>
+      (function () {
+        var locationSearch = window.location.search;
+        if (!locationSearch || locationSearch[1] !== "/") {
+          return;
+        }
+
+        var decodedPath = locationSearch
+          .slice(1)
+          .split("&")
+          .map(function (part) {
+            return part.replace(/~and~/g, "&");
+          })
+          .join("?");
+
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname.replace(/\/$/, "") + decodedPath + window.location.hash
+        );
+      })();
+    </script>
   </head>
   <body class="bg-slate-950">
     <div id="root"></div>

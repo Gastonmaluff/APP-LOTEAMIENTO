@@ -1,4 +1,3 @@
-import { structuredLotsDataById } from "../data/structuredLotsData";
 import type { FeatureType, LotData } from "../types/lots";
 
 export const statusPalette = {
@@ -29,12 +28,7 @@ export function getFeatureTypeFromId(id: string): FeatureType | null {
   return null;
 }
 
-export function getFeatureData(id: string): LotData | null {
-  const directMatch = structuredLotsDataById.get(id);
-  if (directMatch) {
-    return directMatch;
-  }
-
+export function buildFallbackFeatureData(id: string): LotData | null {
   const inferredType = getFeatureTypeFromId(id);
   if (!inferredType) {
     return null;
@@ -43,12 +37,46 @@ export function getFeatureData(id: string): LotData | null {
   return {
     id,
     type: inferredType,
+    name: id,
     description: "Elemento detectado en el SVG. Sin datos comerciales cargados todavia."
   };
 }
 
+export function getFeatureData(id: string, lotsById: ReadonlyMap<string, LotData>): LotData | null {
+  const directMatch = lotsById.get(id);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  return buildFallbackFeatureData(id);
+}
+
 export function getFeatureLabel(type: FeatureType): string {
   return labelByType[type];
+}
+
+export function getStatusLabel(status?: LotData["status"], type?: FeatureType) {
+  if (status === "available") {
+    return "Disponible";
+  }
+
+  if (status === "reserved") {
+    return "Reservado";
+  }
+
+  if (status === "sold") {
+    return "Vendido";
+  }
+
+  if (type === "road") {
+    return "Solo referencia";
+  }
+
+  if (type === "area") {
+    return "Area comun";
+  }
+
+  return "Sin definir";
 }
 
 export function formatArea(value?: number | string | null): string {
@@ -85,4 +113,20 @@ export function formatPrice(price?: number | string | null, currency?: "USD" | "
     currency: currency ?? "USD",
     maximumFractionDigits: 0
   }).format(price);
+}
+
+export function formatPercent(value?: number | null): string {
+  if (value === undefined || value === null) {
+    return "No disponible";
+  }
+
+  return `${value}%`;
+}
+
+export function formatInstallments(value?: number | null): string {
+  if (value === undefined || value === null) {
+    return "No disponible";
+  }
+
+  return `${value} cuotas`;
 }

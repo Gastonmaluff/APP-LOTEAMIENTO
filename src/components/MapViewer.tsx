@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { structuredLotsData } from "../data/structuredLotsData";
 import type { LotData } from "../types/lots";
 import { getFeatureData, getFeatureTypeFromId, statusPalette } from "../utils/mapUtils";
 
@@ -10,6 +9,7 @@ type TooltipState = {
 } | null;
 
 type MapViewerProps = {
+  lots: LotData[];
   onActiveChange: (item: LotData | null) => void;
   onHoverChange: (item: LotData | null) => void;
 };
@@ -18,9 +18,10 @@ type LotStatus = NonNullable<LotData["status"]>;
 
 const svgIdSelector = "[id]";
 
-export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
+export function MapViewer({ lots, onActiveChange, onHoverChange }: MapViewerProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const svgRootRef = useRef<SVGSVGElement | null>(null);
+  const lotsByIdRef = useRef<Map<string, LotData>>(new Map());
 
   const [svgMarkup, setSvgMarkup] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -28,15 +29,20 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const lotsById = useMemo(() => new Map(lots.map((item) => [item.id, item])), [lots]);
   const statusesById = useMemo(
     () =>
       new Map(
-        structuredLotsData.flatMap((item) =>
+        lots.flatMap((item) =>
           item.type === "lote" && item.status ? ([[item.id, item.status]] as Array<[string, LotStatus]>) : []
         )
       ),
-    []
+    [lots]
   );
+
+  useEffect(() => {
+    lotsByIdRef.current = lotsById;
+  }, [lotsById]);
 
   useEffect(() => {
     let isMounted = true;
@@ -123,7 +129,7 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
 
       const handleMouseEnter = (event: Event) => {
         const current = event.currentTarget as SVGElement;
-        const item = getFeatureData(current.id);
+        const item = getFeatureData(current.id, lotsByIdRef.current);
 
         setHoveredId(current.id);
         onHoverChange(item);
@@ -143,7 +149,7 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
 
       const handleMouseMove = (event: Event) => {
         const current = event.currentTarget as SVGElement;
-        const item = getFeatureData(current.id);
+        const item = getFeatureData(current.id, lotsByIdRef.current);
         if (!item || item.type === "road") {
           return;
         }
@@ -165,7 +171,7 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
 
       const handleClick = (event: Event) => {
         const current = event.currentTarget as SVGElement;
-        const item = getFeatureData(current.id);
+        const item = getFeatureData(current.id, lotsByIdRef.current);
 
         if (!item || item.type === "road") {
           return;
@@ -226,6 +232,25 @@ export function MapViewer({ onActiveChange, onHoverChange }: MapViewerProps) {
 
     paintInteractiveNodes(svgRoot, hoveredId, activeId, statusesById);
   }, [activeId, hoveredId, statusesById]);
+
+  useEffect(() => {
+    if (activeId) {
+      onActiveChange(getFeatureData(activeId, lotsById));
+    }
+
+    if (hoveredId) {
+      onHoverChange(getFeatureData(hoveredId, lotsById));
+    }
+
+    setTooltip((currentTooltip) => {
+      if (!currentTooltip) {
+        return currentTooltip;
+      }
+
+      const nextItem = getFeatureData(currentTooltip.item.id, lotsById);
+      return nextItem ? { ...currentTooltip, item: nextItem } : null;
+    });
+  }, [activeId, hoveredId, lotsById, onActiveChange, onHoverChange]);
 
   return (
     <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/80 shadow-soft">

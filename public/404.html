@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Redirigiendo...</title>
+    <script>
+      (function () {
+        var basePath = "/APP-LOTEAMIENTO";
+        var redirectPath =
+          basePath +
+          "/?" +
+          window.location.pathname
+            .replace(basePath, "")
+            .replace(/&/g, "~and~") +
+          (window.location.search ? window.location.search.replace(/&/g, "~and~") : "") +
+          window.location.hash;
+
+        window.location.replace(redirectPath);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .field-dark {
+    @apply w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-brand-300;
+  }
+}
+
 :root {
   color: #0f172a;
   background: #f8fafc;
@@ -26,4 +32,9 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }

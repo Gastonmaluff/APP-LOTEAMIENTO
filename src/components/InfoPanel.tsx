@@ -1,16 +1,17 @@
 import type { LotData } from "../types/lots";
-import { formatArea, formatPrice, getFeatureLabel } from "../utils/mapUtils";
+import {
+  formatArea,
+  formatInstallments,
+  formatPercent,
+  formatPrice,
+  getFeatureLabel,
+  getStatusLabel
+} from "../utils/mapUtils";
 
 type InfoPanelProps = {
   activeItem: LotData | null;
   hoveredItem: LotData | null;
 };
-
-const statusCopy = {
-  available: "Disponible",
-  reserved: "Reservado",
-  sold: "Vendido"
-} as const;
 
 export function InfoPanel({ activeItem, hoveredItem }: InfoPanelProps) {
   const item = activeItem ?? hoveredItem;
@@ -56,12 +57,13 @@ export function InfoPanel({ activeItem, hoveredItem }: InfoPanelProps) {
         <Metric label="ID" value={item.id} />
         <Metric label="Manzana" value={item.manzana ?? "No aplica"} />
         <Metric label="Lote" value={item.lotNumber ?? "No aplica"} />
-        <Metric
-          label="Estado"
-          value={item.status ? statusCopy[item.status] : item.type === "road" ? "Solo referencia" : "Sin definir"}
-        />
+        <Metric label="Estado" value={getStatusLabel(item.status, item.type)} />
         <Metric label="Area" value={formatArea(item.area)} />
         <Metric label="Precio" value={formatPrice(item.price, item.currency)} />
+        <Metric label="Precio final" value={formatPrice(item.finalPrice, item.currency)} />
+        <Metric label="Entrega" value={formatPercent(item.deliveryPercent)} />
+        <Metric label="Cuotas" value={formatInstallments(item.installments)} />
+        <Metric label="Fuente PDF" value={item.sourcePage ? `Pagina ${item.sourcePage}` : "Sin referencia"} />
       </div>
 
       <div className="mt-6 rounded-2xl bg-slate-950 p-4 text-sm leading-6 text-slate-200">
