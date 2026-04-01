@@ -1,9 +1,9 @@
 import type { FeatureType, LotData } from "../types/lots";
 
 export const statusPalette = {
-  available: "#46b981",
-  reserved: "#f2a93b",
-  sold: "#d86b7a"
+  available: "#6f8f6b",
+  reserved: "#cbb89d",
+  sold: "#6b6257"
 } as const;
 
 const labelByType: Record<FeatureType, string> = {
