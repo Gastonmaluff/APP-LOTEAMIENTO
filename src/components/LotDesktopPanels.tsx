@@ -36,19 +36,14 @@ export function LotDesktopPanels({ item }: LotDesktopPanelsProps) {
       <div className="space-y-5">
         <article className="rounded-[30px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f4eee5_100%)] px-7 py-7 shadow-[0_24px_60px_rgba(15,23,42,0.05)]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Financiacion</p>
-          <div className="mt-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{financingSummary.title}</p>
-            <p className="font-display mt-3 text-[2rem] leading-none text-[#092930]">{financingSummary.value}</p>
-            <p className="mt-3 text-sm leading-7 text-slate-700">{financingSummary.detail}</p>
-            {financingSummary.estimatedInstallment ? (
-              <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
-                Cuota estimada: {financingSummary.estimatedInstallment}
-              </p>
-            ) : null}
+          <div className="mt-5 space-y-4">
+            <FinanceRow label={financingSummary.downPaymentLabel ?? "Entrega"} value={financingSummary.downPayment} />
+            <FinanceRow
+              label={financingSummary.installmentsLabel ?? "Cuotas"}
+              value={financingSummary.estimatedInstallment}
+            />
+            <FinanceRow label="Total" value={financingSummary.total} isStrong />
           </div>
-          <p className="mt-5 border-t border-stone-200 pt-5 text-[1.02rem] leading-8 text-slate-700">
-            {item.financingText ?? "Consulta las condiciones comerciales disponibles para este lote."}
-          </p>
         </article>
 
         {showDescription ? (
@@ -67,6 +62,23 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div className="border-b border-stone-200 py-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
       <p className="mt-2 text-[1rem] font-medium leading-7 text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function FinanceRow({
+  isStrong = false,
+  label,
+  value
+}: {
+  isStrong?: boolean;
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-stone-200 pb-4 last:border-b-0 last:pb-0">
+      <p className={`text-sm ${isStrong ? "font-semibold text-slate-800" : "text-slate-600"}`}>{label}</p>
+      <p className={`${isStrong ? "font-semibold text-[#092930]" : "font-medium text-slate-900"}`}>{value ?? "Consultar"}</p>
     </div>
   );
 }

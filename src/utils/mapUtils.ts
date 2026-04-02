@@ -128,10 +128,11 @@ export type CommercialPriceSummary = {
 };
 
 export type FinancingSummary = {
-  detail: string;
+  downPaymentLabel: string | null;
+  downPayment: string | null;
   estimatedInstallment: string | null;
-  title: string;
-  value: string;
+  installmentsLabel: string | null;
+  total: string;
 };
 
 export function getCommercialPriceSummary(item: Pick<LotData, "currency" | "deliveryPercent" | "finalPrice" | "financingText" | "installments" | "price">): CommercialPriceSummary {
@@ -163,33 +164,25 @@ export function getCommercialPriceSummary(item: Pick<LotData, "currency" | "deli
   };
 }
 
-export function getFinancingSummary(item: Pick<LotData, "currency" | "deliveryPercent" | "financingText" | "installments" | "price">): FinancingSummary {
-  const calculatedInstallment = calculateMonthlyInstallment(item.price, item.deliveryPercent, item.installments);
-  const installmentCaption = buildInstallmentCaption(item.deliveryPercent, item.installments, item.financingText);
-
-  if (item.currency === "PYG") {
-    return {
-      title: "Cuota mensual",
-      value: formatPrice(calculatedInstallment ?? item.price, "PYG"),
-      detail: installmentCaption,
-      estimatedInstallment: null
-    };
-  }
-
-  if (item.currency === "USD") {
-    return {
-      title: "Financiacion",
-      value: installmentCaption,
-      detail: calculatedInstallment ? `Cuota estimada: ${formatPrice(calculatedInstallment, "USD")}` : "Pago contado",
-      estimatedInstallment: calculatedInstallment ? formatPrice(calculatedInstallment, "USD") : null
-    };
-  }
+export function getFinancingSummary(item: Pick<LotData, "currency" | "deliveryPercent" | "finalPrice" | "financingText" | "installments" | "price">): FinancingSummary {
+  const totalAmount = resolveTotalAmount(item.finalPrice, item.price, item.currency);
+  const calculatedInstallment = calculateMonthlyInstallment(totalAmount ?? item.price, item.deliveryPercent, item.installments);
+  const downPaymentAmount = calculateDownPayment(totalAmount ?? item.price, item.deliveryPercent);
+  const currency = item.currency ?? null;
 
   return {
-    title: "Financiacion",
-    value: item.financingText ?? "Consultar condiciones comerciales",
-    detail: "Nuestro equipo puede ayudarte a revisar opciones para este lote.",
-    estimatedInstallment: null
+    downPaymentLabel:
+      item.deliveryPercent !== undefined && item.deliveryPercent !== null
+        ? `Entrega ${item.deliveryPercent}%`
+        : null,
+    downPayment:
+      item.deliveryPercent !== undefined && item.deliveryPercent !== null ? formatPrice(downPaymentAmount, currency) : null,
+    estimatedInstallment: calculatedInstallment ? formatPrice(calculatedInstallment, currency) : null,
+    installmentsLabel:
+      item.installments !== undefined && item.installments !== null
+        ? `${item.installments} cuotas de`
+        : null,
+    total: formatPrice(totalAmount ?? item.price, currency)
   };
 }
 
@@ -240,6 +233,44 @@ function buildInstallmentCaption(
   }
 
   return "Consultar financiacion";
+}
+
+function calculateDownPayment(price?: number | string | null, deliveryPercent?: number | null) {
+  if (typeof price !== "number" || !Number.isFinite(price)) {
+    return null;
+  }
+
+  if (deliveryPercent === undefined || deliveryPercent === null) {
+    return null;
+  }
+
+  return price * (deliveryPercent / 100);
+}
+
+function resolveTotalAmount(finalPrice?: number | string | null, price?: number | string | null, currency?: "USD" | "PYG" | null) {
+  if (typeof finalPrice === "number" && Number.isFinite(finalPrice)) {
+    return finalPrice;
+  }
+
+  if (typeof price === "number" && Number.isFinite(price)) {
+    return price;
+  }
+
+  if (typeof finalPrice === "string") {
+    const normalizedFinal = Number(finalPrice.replace(/[^\d.,-]/g, "").replace(",", "."));
+    if (Number.isFinite(normalizedFinal)) {
+      return normalizedFinal;
+    }
+  }
+
+  if (typeof price === "string") {
+    const normalizedPrice = Number(price.replace(/[^\d.,-]/g, "").replace(",", "."));
+    if (Number.isFinite(normalizedPrice)) {
+      return normalizedPrice;
+    }
+  }
+
+  return currency ? null : null;
 }
 
 export function hasMeaningfulDescription(description?: string | null) {

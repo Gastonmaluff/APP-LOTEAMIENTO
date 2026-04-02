@@ -102,18 +102,18 @@ export function InfoPanel({
               <InfoStat label="Superficie" value={formatArea(item.area)} />
               <InfoStat label="Estado" value={statusLabel} />
               <InfoStat label="Moneda" value={item.currency ?? "Consultar"} />
-              <InfoStat label={financingSummary.title} value={financingSummary.value} />
             </dl>
 
-            <section className="mt-8 rounded-[26px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f5f0e8_100%)] px-5 py-5">
+            <section className="mt-8 rounded-[26px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f5f0e8_100%)] px-5 py-5 xl:hidden">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Financiacion</p>
-              <p className="font-display mt-4 text-[1.8rem] leading-tight text-[#092930]">{financingSummary.value}</p>
-              <p className="mt-3 text-sm leading-7 text-slate-700">{financingSummary.detail}</p>
-              {financingSummary.estimatedInstallment ? (
-                <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
-                  Cuota estimada: {financingSummary.estimatedInstallment}
-                </p>
-              ) : null}
+              <div className="mt-4 space-y-3">
+                <FinanceRow label={financingSummary.downPaymentLabel ?? "Entrega"} value={financingSummary.downPayment} />
+                <FinanceRow
+                  label={financingSummary.installmentsLabel ?? "Cuotas"}
+                  value={financingSummary.estimatedInstallment}
+                />
+                <FinanceRow label="Total" value={financingSummary.total} isStrong />
+              </div>
             </section>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -145,6 +145,25 @@ function InfoStat({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
       <p className="mt-2 text-[1rem] font-medium leading-7 text-slate-900 xl:text-[1.05rem]">{value}</p>
+    </div>
+  );
+}
+
+function FinanceRow({
+  isStrong = false,
+  label,
+  value
+}: {
+  isStrong?: boolean;
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-stone-200/90 pb-3 last:border-b-0 last:pb-0">
+      <p className={`text-sm ${isStrong ? "font-semibold text-slate-800" : "text-slate-600"}`}>{label}</p>
+      <p className={`text-sm ${isStrong ? "font-semibold text-[#092930]" : "font-medium text-slate-900"}`}>
+        {value ?? "Consultar"}
+      </p>
     </div>
   );
 }
