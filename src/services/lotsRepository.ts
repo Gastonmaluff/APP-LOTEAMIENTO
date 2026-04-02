@@ -84,10 +84,30 @@ function normalizeLot(id: string, rawData: FirestoreLotRecord): LotData {
     deliveryPercent: normalizeNullableNumber(rawData.deliveryPercent),
     installments: normalizeNullableNumber(rawData.installments),
     financingText: normalizeNullableString(rawData.financingText),
+    dimensions: normalizeDimensions(rawData.dimensions),
     status: normalizeStatus(rawData.status),
     description: normalizeNullableString(rawData.description),
     sourcePage: normalizeNullableNumber(rawData.sourcePage)
   };
+}
+
+function normalizeDimensions(value: unknown): LotData["dimensions"] {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const dimensions = value as Record<string, unknown>;
+
+  const nextDimensions = {
+    width: normalizeNullableNumber(dimensions.width),
+    length: normalizeNullableNumber(dimensions.length),
+    top: normalizeNullableString(dimensions.top),
+    right: normalizeNullableString(dimensions.right),
+    bottom: normalizeNullableString(dimensions.bottom),
+    left: normalizeNullableString(dimensions.left)
+  };
+
+  return Object.values(nextDimensions).some((entry) => entry !== null) ? nextDimensions : null;
 }
 
 function toSortableNumber(value?: string | null) {
@@ -166,6 +186,16 @@ function serializeLotForWrite(item: LotData) {
     deliveryPercent: item.deliveryPercent ?? null,
     installments: item.installments ?? null,
     financingText: item.financingText ?? null,
+    dimensions: item.dimensions
+      ? {
+          width: item.dimensions.width ?? null,
+          length: item.dimensions.length ?? null,
+          top: item.dimensions.top ?? null,
+          right: item.dimensions.right ?? null,
+          bottom: item.dimensions.bottom ?? null,
+          left: item.dimensions.left ?? null
+        }
+      : null,
     status: item.status ?? null,
     description: item.description ?? null,
     sourcePage: item.sourcePage ?? null

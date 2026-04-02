@@ -12,6 +12,8 @@ export type LotData = {
   installments?: number | null;
   financingText?: string | null;
   dimensions?: {
+    width?: number | null;
+    length?: number | null;
     top?: string | null;
     right?: string | null;
     bottom?: string | null;

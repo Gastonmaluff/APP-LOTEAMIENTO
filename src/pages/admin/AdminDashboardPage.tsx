@@ -1,27 +1,14 @@
 import { Link } from "react-router-dom";
-import {
-  ADMIN_LOTES_ROUTE,
-  PROJECT_NAME,
-  PROJECT_SLUG,
-  PUBLIC_PROJECT_ROUTE
-} from "../../config/project";
-import { unmatchedLots } from "../../data/structuredLotsData";
-import { useAuth } from "../../contexts/AuthContext";
+import { ADMIN_LOTES_ROUTE, PROJECT_NAME, PUBLIC_PROJECT_ROUTE } from "../../config/project";
 import { useLots } from "../../contexts/LotsContext";
-import { seedProjectLots } from "../../services/lotsRepository";
-
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 export function AdminDashboardPage() {
-  const { lots, seedRecommended, source } = useLots();
-  const { user } = useAuth();
-
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
+  const { lots } = useLots();
 
   const metrics = useMemo(() => {
     const vendibleLots = lots.filter((item) => item.type === "lote");
+
     return {
       total: vendibleLots.length,
       available: vendibleLots.filter((item) => item.status === "available").length,
@@ -30,123 +17,70 @@ export function AdminDashboardPage() {
     };
   }, [lots]);
 
-  async function handleSeed() {
-    setSeeding(true);
-    setMessage(null);
-    setError(null);
-
-    try {
-      const result = await seedProjectLots(PROJECT_SLUG, user?.email ?? null);
-      setMessage(`Seed completado. ${result.lotsCount} documentos sincronizados en Firestore.`);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "No se pudo ejecutar el seed.");
-    } finally {
-      setSeeding(false);
-    }
-  }
-
   return (
-    <div className="space-y-6">
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-soft backdrop-blur">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-200">Resumen</p>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-8">
+      <section className="rounded-[34px] border border-stone-200 bg-white/90 px-6 py-7 shadow-[0_22px_60px_rgba(15,23,42,0.06)] backdrop-blur sm:px-8">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h2 className="text-3xl font-semibold text-white">{PROJECT_NAME}</h2>
-            <p className="mt-2 text-sm text-slate-300">
-              Proyecto `{PROJECT_SLUG}` conectado a Firestore y listo para operacion admin.
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Dashboard</p>
+            <h2 className="font-display mt-3 text-[2.5rem] leading-tight text-[#092930]">{PROJECT_NAME}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+              Una vista general del inventario para seguir disponibilidad, reservas y unidades vendidas.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                void handleSeed();
-              }}
-              disabled={seeding}
-              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-brand-50 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {seeding ? "Sembrando..." : "Sembrar Firestore"}
-            </button>
             <Link
               to={ADMIN_LOTES_ROUTE}
-              className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              className="rounded-full bg-[#0f2f35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#143b43]"
             >
               Gestionar lotes
             </Link>
             <Link
               to={PUBLIC_PROJECT_ROUTE}
-              className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#092930]"
             >
-              Abrir sitio publico
+              Ver sitio
             </Link>
           </div>
         </div>
-
-        {message ? (
-          <div className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
-            {message}
-          </div>
-        ) : null}
-
-        {error ? (
-          <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-4 text-sm text-rose-100">
-            {error}
-          </div>
-        ) : null}
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <DashboardCard label="Lotes" value={String(metrics.total)} />
-        <DashboardCard label="Disponibles" value={String(metrics.available)} />
-        <DashboardCard label="Reservados" value={String(metrics.reserved)} />
-        <DashboardCard label="Vendidos" value={String(metrics.sold)} />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <article className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-soft backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-200">Estado del backend</p>
-          <div className="mt-4 space-y-4 text-sm leading-7 text-slate-300">
-            <p>
-              Fuente actual de datos: <span className="font-semibold text-white">{source}</span>
-            </p>
-            <p>
-              {seedRecommended
-                ? "Firestore aun no devuelve documentos para este proyecto. El seed va a crear el documento del proyecto y la subcoleccion lots."
-                : "Firestore ya esta respondiendo documentos y alimenta la vista publica."}
-            </p>
-            <p>
-              La coleccion `adminActivity` ya se usa para registrar seeds y actualizaciones. `visitRequests`
-              queda preparada para la siguiente fase.
-            </p>
-          </div>
-        </article>
-
-        <article className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-soft backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-200">No mapeados del PDF</p>
-          <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-            {unmatchedLots.length === 0 ? (
-              <p>Todo lo extraido del PDF se pudo vincular al SVG actual.</p>
-            ) : (
-              unmatchedLots.map((item) => (
-                <div key={item.rawLabel} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <p className="font-semibold text-white">{item.rawLabel}</p>
-                  <p className="mt-1 text-slate-300">{item.reason}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
+        <DashboardCard label="Total de lotes" value={String(metrics.total)} tone="neutral" />
+        <DashboardCard label="Disponibles" value={String(metrics.available)} tone="available" />
+        <DashboardCard label="Reservados" value={String(metrics.reserved)} tone="reserved" />
+        <DashboardCard label="Vendidos" value={String(metrics.sold)} tone="sold" />
       </section>
     </div>
   );
 }
 
-function DashboardCard({ label, value }: { label: string; value: string }) {
+function DashboardCard({
+  label,
+  tone,
+  value
+}: {
+  label: string;
+  tone: "available" | "neutral" | "reserved" | "sold";
+  value: string;
+}) {
+  const toneClass =
+    tone === "available"
+      ? "bg-[#eef5eb] text-[#4f684b]"
+      : tone === "reserved"
+        ? "bg-[#f4ede3] text-[#7a6754]"
+        : tone === "sold"
+          ? "bg-[#ece8e2] text-[#61594f]"
+          : "bg-[#f6f1e8] text-[#0f2f35]";
+
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/5 px-5 py-5 shadow-soft backdrop-blur">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-200">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
-    </div>
+    <article className="rounded-[28px] border border-stone-200 bg-white/92 px-6 py-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</p>
+      <div className="mt-5 flex items-center justify-between gap-4">
+        <p className="font-display text-[3rem] leading-none text-[#092930]">{value}</p>
+        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${toneClass}`}>{label}</span>
+      </div>
+    </article>
   );
 }

@@ -17,20 +17,37 @@ export function AdminShell() {
   const { signOutUser, user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#08121e_0%,#0f172a_100%)] text-slate-100">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <header className="rounded-[32px] border border-white/10 bg-white/5 px-6 py-6 shadow-soft backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f5efe6_0%,#f8f5ef_48%,#fcfbf8_100%)] text-slate-900">
+      <div className="mx-auto max-w-[1560px] px-4 py-6 sm:px-6 lg:px-8">
+        <header className="sticky top-4 z-40 rounded-[30px] border border-stone-200/90 bg-white/88 px-6 py-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.34em] text-brand-200">
-                Portal admin
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold text-white">{PROJECT_NAME}</h1>
-              <p className="mt-2 text-sm text-slate-300">Firestore + Auth para operar los lotes del proyecto.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#715b3b]">Administracion</p>
+              <h1 className="font-display mt-2 text-3xl text-[#092930]">{PROJECT_NAME}</h1>
+              <p className="mt-2 text-sm text-slate-600">Panel comercial para operar lotes, precios y disponibilidad.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-slate-200">
+              <nav className="flex flex-wrap items-center gap-2">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      [
+                        "rounded-full px-4 py-2.5 text-sm font-medium transition",
+                        isActive
+                          ? "bg-[#0f2f35] text-white"
+                          : "text-slate-700 hover:bg-[#f3ede3] hover:text-[#092930]"
+                      ].join(" ")
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+
+              <div className="rounded-full border border-stone-200 bg-[#f7f1e8] px-4 py-2 text-xs text-slate-700">
                 {user?.email ?? "Sin usuario"}
               </div>
               <button
@@ -38,7 +55,7 @@ export function AdminShell() {
                 onClick={() => {
                   void signOutUser();
                 }}
-                className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#092930]"
               >
                 Cerrar sesion
               </button>
@@ -46,30 +63,9 @@ export function AdminShell() {
           </div>
         </header>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="rounded-[28px] border border-white/10 bg-white/5 p-4 shadow-soft backdrop-blur">
-            <nav className="space-y-2">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    [
-                      "block rounded-2xl px-4 py-3 text-sm font-medium transition",
-                      isActive ? "bg-white text-slate-950" : "text-slate-200 hover:bg-white/10"
-                    ].join(" ")
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          </aside>
-
-          <main>
-            <Outlet />
-          </main>
-        </div>
+        <main className="mt-8">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
