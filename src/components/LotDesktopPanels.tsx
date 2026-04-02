@@ -3,7 +3,8 @@ import {
   formatArea,
   formatInstallments,
   formatPercent,
-  getCommercialPriceSummary
+  getFinancingSummary,
+  hasMeaningfulDescription
 } from "../utils/mapUtils";
 
 type LotDesktopPanelsProps = {
@@ -15,7 +16,8 @@ export function LotDesktopPanels({ item }: LotDesktopPanelsProps) {
     return null;
   }
 
-  const commercialPrice = getCommercialPriceSummary(item);
+  const financingSummary = getFinancingSummary(item);
+  const showDescription = hasMeaningfulDescription(item.description);
 
   return (
     <section className="hidden xl:grid xl:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] xl:gap-10">
@@ -34,23 +36,27 @@ export function LotDesktopPanels({ item }: LotDesktopPanelsProps) {
       <div className="space-y-5">
         <article className="rounded-[30px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f4eee5_100%)] px-7 py-7 shadow-[0_24px_60px_rgba(15,23,42,0.05)]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Financiacion</p>
-          <div className="mt-5 border-b border-stone-200 pb-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{commercialPrice.label}</p>
-            <p className="font-display mt-3 text-[2rem] leading-none text-[#092930]">{commercialPrice.value}</p>
-            <p className="mt-3 text-sm leading-7 text-slate-600">{commercialPrice.caption}</p>
+          <div className="mt-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{financingSummary.title}</p>
+            <p className="font-display mt-3 text-[2rem] leading-none text-[#092930]">{financingSummary.value}</p>
+            <p className="mt-3 text-sm leading-7 text-slate-700">{financingSummary.detail}</p>
+            {financingSummary.estimatedInstallment ? (
+              <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
+                Cuota estimada: {financingSummary.estimatedInstallment}
+              </p>
+            ) : null}
           </div>
-          <p className="mt-5 text-[1.02rem] leading-8 text-slate-700">
-            {item.financingText ?? "Consulta las opciones disponibles para este lote con nuestro equipo comercial."}
+          <p className="mt-5 border-t border-stone-200 pt-5 text-[1.02rem] leading-8 text-slate-700">
+            {item.financingText ?? "Consulta las condiciones comerciales disponibles para este lote."}
           </p>
         </article>
 
-        <article className="rounded-[30px] border border-stone-200 bg-white px-7 py-7 shadow-[0_24px_60px_rgba(15,23,42,0.05)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Descripcion</p>
-          <p className="mt-5 text-[1rem] leading-8 text-slate-600">
-            {item.description ??
-              "La ficha queda preparada para seguir creciendo con mas detalles tecnicos, observaciones y argumentos comerciales."}
-          </p>
-        </article>
+        {showDescription ? (
+          <article className="rounded-[30px] border border-stone-200 bg-white px-7 py-7 shadow-[0_24px_60px_rgba(15,23,42,0.05)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Descripcion</p>
+            <p className="mt-5 text-[1rem] leading-8 text-slate-600">{item.description}</p>
+          </article>
+        ) : null}
       </div>
     </section>
   );

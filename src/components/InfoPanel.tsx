@@ -3,10 +3,9 @@ import type { LotData } from "../types/lots";
 import { SelectedLotPreview } from "./SelectedLotPreview";
 import {
   formatArea,
-  formatInstallments,
-  formatPercent,
   getCommercialPriceSummary,
   getFeatureLabel,
+  getFinancingSummary,
   getStatusLabel
 } from "../utils/mapUtils";
 
@@ -64,6 +63,7 @@ export function InfoPanel({
           ? "border-[#cfc7c0] bg-[#f0ece8] text-[#625a50]"
           : "border-stone-200 bg-stone-100 text-slate-600";
   const commercialPrice = getCommercialPriceSummary(item);
+  const financingSummary = getFinancingSummary(item);
 
   return (
     <aside className="w-full max-w-full overflow-hidden rounded-[32px] border border-stone-200 bg-white/96 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur xl:min-h-[780px]">
@@ -87,11 +87,8 @@ export function InfoPanel({
             <h2 className="font-display mt-3 break-words text-[1.85rem] font-semibold leading-[1.02] text-slate-900 sm:text-[2.2rem] xl:text-[3.35rem]">
               {item.name ?? "Lote seleccionado"}
             </h2>
-            <p className="mt-3 text-sm text-slate-500 xl:text-base">
-              {item.manzana ? `${item.manzana} - lote ${item.lotNumber ?? "-"}` : item.id}
-            </p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
+              <span className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${statusClass}`}>
                 {statusLabel}
               </span>
             </div>
@@ -100,16 +97,24 @@ export function InfoPanel({
             <p className="font-display mt-3 text-[2.35rem] leading-none text-[#092930] xl:text-[3.3rem]">
               {commercialPrice.value}
             </p>
-            <p className="mt-3 text-sm text-slate-500">{commercialPrice.caption}</p>
 
             <dl className="mt-7 grid gap-x-8 gap-y-4 border-t border-stone-200 pt-6 sm:grid-cols-2">
-              <InfoStat label={commercialPrice.label} value={commercialPrice.value} />
               <InfoStat label="Superficie" value={formatArea(item.area)} />
-              <InfoStat label="Moneda" value={item.currency ?? "Consultar"} />
-              <InfoStat label="Entrega" value={formatPercent(item.deliveryPercent)} />
-              <InfoStat label="Cuotas" value={formatInstallments(item.installments)} />
               <InfoStat label="Estado" value={statusLabel} />
+              <InfoStat label="Moneda" value={item.currency ?? "Consultar"} />
+              <InfoStat label={financingSummary.title} value={financingSummary.value} />
             </dl>
+
+            <section className="mt-8 rounded-[26px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f5f0e8_100%)] px-5 py-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Financiacion</p>
+              <p className="font-display mt-4 text-[1.8rem] leading-tight text-[#092930]">{financingSummary.value}</p>
+              <p className="mt-3 text-sm leading-7 text-slate-700">{financingSummary.detail}</p>
+              {financingSummary.estimatedInstallment ? (
+                <p className="mt-3 text-sm font-medium leading-7 text-slate-900">
+                  Cuota estimada: {financingSummary.estimatedInstallment}
+                </p>
+              ) : null}
+            </section>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <a
@@ -130,39 +135,6 @@ export function InfoPanel({
           </div>
         </div>
 
-        <div className="mt-8 space-y-6 xl:hidden">
-          <section className="rounded-[26px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f5f0e8_100%)] px-5 py-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Financiacion</p>
-            <p className="mt-4 text-[1rem] leading-8 text-slate-700">
-              {item.financingText ?? "Consulta las opciones disponibles para este lote con nuestro equipo comercial."}
-            </p>
-          </section>
-
-          <section className="rounded-[26px] border border-stone-200 bg-white px-5 py-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Descripcion</p>
-            <p className="mt-4 text-sm leading-8 text-slate-600">
-              {item.description ??
-                "La ficha queda preparada para seguir creciendo con mas detalles tecnicos, medidas exactas y observaciones comerciales."}
-            </p>
-          </section>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-brand-700 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-800"
-            >
-              Consultar por WhatsApp
-            </a>
-            <a
-              href={requestVisitHref}
-              className="inline-flex items-center justify-center rounded-full border border-slate-200 px-5 py-3.5 text-sm font-semibold text-slate-800 transition hover:border-brand-300 hover:text-brand-700"
-            >
-              Solicitar visita
-            </a>
-          </div>
-        </div>
       </div>
     </aside>
   );

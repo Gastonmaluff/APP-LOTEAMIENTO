@@ -127,6 +127,13 @@ export type CommercialPriceSummary = {
   value: string;
 };
 
+export type FinancingSummary = {
+  detail: string;
+  estimatedInstallment: string | null;
+  title: string;
+  value: string;
+};
+
 export function getCommercialPriceSummary(item: Pick<LotData, "currency" | "deliveryPercent" | "finalPrice" | "financingText" | "installments" | "price">): CommercialPriceSummary {
   if (item.currency === "USD") {
     return {
@@ -153,6 +160,36 @@ export function getCommercialPriceSummary(item: Pick<LotData, "currency" | "deli
     label: "Precio",
     value: formatPrice(item.price, item.currency),
     caption: "Consultar disponibilidad"
+  };
+}
+
+export function getFinancingSummary(item: Pick<LotData, "currency" | "deliveryPercent" | "financingText" | "installments" | "price">): FinancingSummary {
+  const calculatedInstallment = calculateMonthlyInstallment(item.price, item.deliveryPercent, item.installments);
+  const installmentCaption = buildInstallmentCaption(item.deliveryPercent, item.installments, item.financingText);
+
+  if (item.currency === "PYG") {
+    return {
+      title: "Cuota mensual",
+      value: formatPrice(calculatedInstallment ?? item.price, "PYG"),
+      detail: installmentCaption,
+      estimatedInstallment: null
+    };
+  }
+
+  if (item.currency === "USD") {
+    return {
+      title: "Financiacion",
+      value: installmentCaption,
+      detail: calculatedInstallment ? `Cuota estimada: ${formatPrice(calculatedInstallment, "USD")}` : "Pago contado",
+      estimatedInstallment: calculatedInstallment ? formatPrice(calculatedInstallment, "USD") : null
+    };
+  }
+
+  return {
+    title: "Financiacion",
+    value: item.financingText ?? "Consultar condiciones comerciales",
+    detail: "Nuestro equipo puede ayudarte a revisar opciones para este lote.",
+    estimatedInstallment: null
   };
 }
 
@@ -203,4 +240,26 @@ function buildInstallmentCaption(
   }
 
   return "Consultar financiacion";
+}
+
+export function hasMeaningfulDescription(description?: string | null) {
+  if (!description) {
+    return false;
+  }
+
+  const normalized = description.trim().toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  const placeholderFragments = [
+    "la ficha queda preparada para seguir creciendo",
+    "detalles tecnicos",
+    "medidas exactas",
+    "observaciones comerciales",
+    "argumentos comerciales"
+  ];
+
+  return !placeholderFragments.some((fragment) => normalized.includes(fragment));
 }
