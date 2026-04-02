@@ -6,7 +6,7 @@ import { MapViewer } from "../../components/MapViewer";
 import { ContactSection } from "../../components/public/ContactSection";
 import { useLots } from "../../contexts/LotsContext";
 import type { LotData } from "../../types/lots";
-import { formatPrice, getStatusLabel } from "../../utils/mapUtils";
+import { getCommercialPriceSummary, getStatusLabel } from "../../utils/mapUtils";
 
 const whatsappNumber = (import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
 const assetBasePath = import.meta.env.BASE_URL;
@@ -450,6 +450,8 @@ function LotShowcaseCard({
   imageSrc: string;
   item: LotData;
 }) {
+  const commercialPrice = getCommercialPriceSummary(item);
+
   return (
     <article className="overflow-hidden rounded-[18px] border border-stone-200 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.05)] transition hover:-translate-y-1">
       <div className="relative h-64 overflow-hidden">
@@ -463,7 +465,10 @@ function LotShowcaseCard({
       <div className="p-6">
         <div className="flex items-start justify-between gap-4">
           <h3 className="font-display text-[1.8rem] text-[#092930]">{item.name ?? item.id}</h3>
-          <p className="text-sm font-semibold text-[#715b3b]">{formatPrice(item.price, item.currency)}</p>
+          <div className="text-right">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{commercialPrice.label}</p>
+            <p className="mt-1 text-sm font-semibold text-[#715b3b]">{commercialPrice.value}</p>
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-stone-200 pt-5 text-sm">
@@ -476,6 +481,8 @@ function LotShowcaseCard({
             <p className="mt-1 text-slate-800">{item.lotNumber ?? "Consultar"}</p>
           </div>
         </div>
+
+        <p className="mt-4 text-sm leading-6 text-slate-500">{commercialPrice.caption}</p>
       </div>
     </article>
   );

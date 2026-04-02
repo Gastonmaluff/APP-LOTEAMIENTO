@@ -5,7 +5,7 @@ import {
   formatArea,
   formatInstallments,
   formatPercent,
-  formatPrice,
+  getCommercialPriceSummary,
   getFeatureLabel,
   getStatusLabel
 } from "../utils/mapUtils";
@@ -63,6 +63,7 @@ export function InfoPanel({
         : item.status === "sold"
           ? "border-[#cfc7c0] bg-[#f0ece8] text-[#625a50]"
           : "border-stone-200 bg-stone-100 text-slate-600";
+  const commercialPrice = getCommercialPriceSummary(item);
 
   return (
     <aside className="w-full max-w-full overflow-hidden rounded-[32px] border border-stone-200 bg-white/96 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur xl:min-h-[780px]">
@@ -95,13 +96,14 @@ export function InfoPanel({
               </span>
             </div>
 
-            <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Precio</p>
+            <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{commercialPrice.label}</p>
             <p className="font-display mt-3 text-[2.35rem] leading-none text-[#092930] xl:text-[3.3rem]">
-              {formatPrice(item.price, item.currency)}
+              {commercialPrice.value}
             </p>
+            <p className="mt-3 text-sm text-slate-500">{commercialPrice.caption}</p>
 
             <dl className="mt-7 grid gap-x-8 gap-y-4 border-t border-stone-200 pt-6 sm:grid-cols-2">
-              <InfoStat label="Precio final" value={formatPrice(item.finalPrice, item.currency)} />
+              <InfoStat label={commercialPrice.label} value={commercialPrice.value} />
               <InfoStat label="Superficie" value={formatArea(item.area)} />
               <InfoStat label="Moneda" value={item.currency ?? "Consultar"} />
               <InfoStat label="Entrega" value={formatPercent(item.deliveryPercent)} />

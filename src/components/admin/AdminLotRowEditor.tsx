@@ -11,6 +11,7 @@ import {
   toLotEditorState,
   type LotEditorState
 } from "../../utils/adminLotForm";
+import { getCommercialPriceSummary } from "../../utils/mapUtils";
 
 type AdminLotRowEditorProps = {
   item: LotData;
@@ -44,6 +45,14 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   const computedArea = useMemo(() => computeArea(form.width, form.length), [form.length, form.width]);
   const areaLabel = computedArea ? formatAreaNumber(computedArea) : form.areaDisplay || "Sin calcular";
   const lotLabel = buildLotLabel(form.manzana, form.lotNumber);
+  const commercialPrice = getCommercialPriceSummary({
+    currency: form.currency || null,
+    deliveryPercent: parseNumberLike(form.deliveryPercent),
+    finalPrice: parseNumberLike(form.finalPrice),
+    financingText: form.financingText,
+    installments: parseNumberLike(form.installments),
+    price: parseNumberLike(form.price)
+  });
 
   async function handleSave() {
     setSaving(true);
@@ -98,7 +107,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           </div>
         </Field>
 
-        <Field label="Precio">
+        <Field label={form.currency === "USD" ? "Precio final" : "Precio base"}>
           <input
             value={form.price}
             onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
@@ -149,14 +158,10 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           />
         </Field>
 
-        <Field label="Precio final">
-          <input
-            value={form.finalPrice}
-            onChange={(event) => setForm((current) => ({ ...current, finalPrice: event.target.value }))}
-            className="field-light px-3 py-2.5"
-            inputMode="decimal"
-            placeholder="0"
-          />
+        <Field label={commercialPrice.label}>
+          <div className="flex min-h-[44px] items-center rounded-2xl border border-stone-200 bg-[#f3ede4] px-3 text-sm font-semibold text-slate-800">
+            {commercialPrice.value}
+          </div>
         </Field>
 
         <Field label="Estado">
@@ -213,6 +218,8 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
         </CompactField>
       </div>
 
+      <p className="mt-3 text-xs leading-5 text-slate-500">{commercialPrice.caption}</p>
+
       {message || error ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           {message ? <span className="rounded-full bg-[#eef5eb] px-3 py-1.5 font-medium text-[#506a4e]">{message}</span> : null}
@@ -221,6 +228,15 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
       ) : null}
     </article>
   );
+}
+
+function parseNumberLike(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const normalized = Number(value.replace(",", "."));
+  return Number.isFinite(normalized) ? normalized : null;
 }
 
 function Field({ children, label }: { children: ReactNode; label: string }) {

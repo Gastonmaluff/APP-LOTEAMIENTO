@@ -121,6 +121,41 @@ export function formatPrice(price?: number | string | null, currency?: "USD" | "
   }).format(price);
 }
 
+export type CommercialPriceSummary = {
+  caption: string;
+  label: string;
+  value: string;
+};
+
+export function getCommercialPriceSummary(item: Pick<LotData, "currency" | "deliveryPercent" | "finalPrice" | "financingText" | "installments" | "price">): CommercialPriceSummary {
+  if (item.currency === "USD") {
+    return {
+      label: "Precio final",
+      value: formatPrice(item.finalPrice ?? item.price, "USD"),
+      caption: item.deliveryPercent !== null && item.deliveryPercent !== undefined || item.installments
+        ? "Consultar financiacion"
+        : "Pago contado"
+    };
+  }
+
+  if (item.currency === "PYG") {
+    const calculatedInstallment = calculateMonthlyInstallment(item.price, item.deliveryPercent, item.installments);
+    const caption = buildInstallmentCaption(item.deliveryPercent, item.installments, item.financingText);
+
+    return {
+      label: "Cuota mensual",
+      value: formatPrice(calculatedInstallment ?? item.price, "PYG"),
+      caption
+    };
+  }
+
+  return {
+    label: "Precio",
+    value: formatPrice(item.price, item.currency),
+    caption: "Consultar disponibilidad"
+  };
+}
+
 export function formatPercent(value?: number | null): string {
   if (value === undefined || value === null) {
     return "No disponible";
@@ -135,4 +170,37 @@ export function formatInstallments(value?: number | null): string {
   }
 
   return `${value} cuotas`;
+}
+
+export function calculateMonthlyInstallment(
+  price?: number | string | null,
+  deliveryPercent?: number | null,
+  installments?: number | null
+) {
+  if (typeof price !== "number" || !Number.isFinite(price)) {
+    return null;
+  }
+
+  if (deliveryPercent === undefined || deliveryPercent === null || installments === undefined || installments === null || installments <= 0) {
+    return null;
+  }
+
+  const financedAmount = price * (1 - deliveryPercent / 100);
+  return financedAmount / installments;
+}
+
+function buildInstallmentCaption(
+  deliveryPercent?: number | null,
+  installments?: number | null,
+  financingText?: string | null
+) {
+  if (deliveryPercent !== undefined && deliveryPercent !== null && installments !== undefined && installments !== null) {
+    return `Entrega ${deliveryPercent}% + ${installments} cuotas`;
+  }
+
+  if (financingText) {
+    return financingText;
+  }
+
+  return "Consultar financiacion";
 }

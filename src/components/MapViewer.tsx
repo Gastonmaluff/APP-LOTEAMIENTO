@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LotData } from "../types/lots";
-import { getFeatureData, getFeatureTypeFromId, getStatusLabel, statusPalette } from "../utils/mapUtils";
+import { getCommercialPriceSummary, getFeatureData, getFeatureTypeFromId, getStatusLabel, statusPalette } from "../utils/mapUtils";
 import type { LotSelectionVisualPayload } from "./LotSelectionFlight";
 
 type TooltipState = {
@@ -291,6 +291,7 @@ export function MapViewer({
                 className="pointer-events-none absolute z-10 hidden max-w-[220px] -translate-x-1/2 -translate-y-full rounded-[22px] border border-white/80 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur sm:block"
                 style={{ left: tooltip.x, top: tooltip.y }}
               >
+                {tooltip.item.type === "lote" ? <MapTooltipPrice item={tooltip.item} /> : null}
                 <p className="font-semibold">{tooltip.item.name ?? tooltip.item.id}</p>
                 <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">
                   {getStatusLabel(tooltip.item.status, tooltip.item.type)}
@@ -300,6 +301,18 @@ export function MapViewer({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function MapTooltipPrice({ item }: { item: LotData }) {
+  const commercialPrice = getCommercialPriceSummary(item);
+
+  return (
+    <div className="mb-3 border-b border-stone-200 pb-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{commercialPrice.label}</p>
+      <p className="mt-1 font-semibold text-[#092930]">{commercialPrice.value}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-500">{commercialPrice.caption}</p>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
   toLotEditorState,
   type LotEditorState
 } from "../../utils/adminLotForm";
-import { buildFallbackFeatureData } from "../../utils/mapUtils";
+import { buildFallbackFeatureData, getCommercialPriceSummary } from "../../utils/mapUtils";
 
 export function AdminLotDetailPage() {
   const { id } = useParams();
@@ -84,6 +84,14 @@ export function AdminLotDetailPage() {
   }
 
   const areaLabel = computedArea ? formatAreaNumber(computedArea) : form.areaDisplay || "Sin calcular";
+  const commercialPrice = getCommercialPriceSummary({
+    currency: form.currency || null,
+    deliveryPercent: parseNumberLike(form.deliveryPercent),
+    finalPrice: parseNumberLike(form.finalPrice),
+    financingText: form.financingText,
+    installments: parseNumberLike(form.installments),
+    price: parseNumberLike(form.price)
+  });
 
   return (
     <div className="space-y-6">
@@ -147,7 +155,7 @@ export function AdminLotDetailPage() {
               <input value={form.length} onChange={(event) => setForm((current) => (current ? { ...current, length: event.target.value } : current))} className="field-light" inputMode="decimal" placeholder="0" />
             </Field>
 
-            <Field label="Precio">
+            <Field label={form.currency === "USD" ? "Precio final" : "Precio base"}>
               <input value={form.price} onChange={(event) => setForm((current) => (current ? { ...current, price: event.target.value } : current))} className="field-light" inputMode="decimal" />
             </Field>
 
@@ -161,10 +169,6 @@ export function AdminLotDetailPage() {
                 <option value="USD">USD</option>
                 <option value="PYG">PYG</option>
               </select>
-            </Field>
-
-            <Field label="Precio final">
-              <input value={form.finalPrice} onChange={(event) => setForm((current) => (current ? { ...current, finalPrice: event.target.value } : current))} className="field-light" inputMode="decimal" />
             </Field>
 
             <Field label="Estado">
@@ -184,6 +188,8 @@ export function AdminLotDetailPage() {
           <aside className="rounded-[30px] border border-stone-200 bg-[linear-gradient(180deg,#f7f2e9_0%,#f2ece3_100%)] px-5 py-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Resumen comercial</p>
             <div className="mt-5 space-y-4">
+              <SummaryRow label={commercialPrice.label} value={commercialPrice.value} />
+              <SummaryRow label="Detalle comercial" value={commercialPrice.caption} />
               <SummaryRow label="Superficie" value={areaLabel} />
               <SummaryRow label="Cuotas" value={form.installments || "Sin definir"} />
               <SummaryRow label="Entrega" value={form.deliveryPercent ? `${form.deliveryPercent}%` : "Sin definir"} />
@@ -250,6 +256,15 @@ export function AdminLotDetailPage() {
       </section>
     </div>
   );
+}
+
+function parseNumberLike(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const normalized = Number(value.replace(",", "."));
+  return Number.isFinite(normalized) ? normalized : null;
 }
 
 function Field({ children, label }: { children: ReactNode; label: string }) {
