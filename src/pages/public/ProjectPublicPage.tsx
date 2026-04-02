@@ -11,10 +11,11 @@ import { formatPrice, getStatusLabel } from "../../utils/mapUtils";
 const whatsappNumber = (import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
 const assetBasePath = import.meta.env.BASE_URL;
 
-const heroImageSrc = `${assetBasePath}images/viva-lago-porteria.png`;
+const heroImageSrc = `${assetBasePath}images/viva-lago-drone.png`;
 const logoImageSrc = `${assetBasePath}images/viva-lago-logo.png`;
 const adminImageSrc = `${assetBasePath}images/viva-lago-admin.png`;
 const nauticoImageSrc = `${assetBasePath}images/viva-lago-nautico.png`;
+const gateImageSrc = `${assetBasePath}images/viva-lago-porteria.png`;
 
 const projectVisuals = [
   {
@@ -25,7 +26,7 @@ const projectVisuals = [
     variant: "large" as const
   },
   {
-    src: heroImageSrc,
+    src: gateImageSrc,
     alt: "Porteria principal de Viva Lago Country.",
     title: "Porteria",
     subtitle: "Ingreso jerarquizado con presencia y control.",
@@ -145,7 +146,7 @@ export function ProjectPublicPage() {
           <div className="relative min-h-[88vh]">
             <img
               src={heroImageSrc}
-              alt="Porteria principal de Viva Lago Country al atardecer."
+              alt="Vista aerea de Viva Lago Country junto al agua al atardecer."
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,41,48,0.14),rgba(9,41,48,0.5))]" />
@@ -292,7 +293,7 @@ export function ProjectPublicPage() {
                 <LotShowcaseCard
                   key={item.id}
                   item={item}
-                  imageSrc={index === 0 ? heroImageSrc : index === 1 ? adminImageSrc : nauticoImageSrc}
+                  imageSrc={index === 0 ? gateImageSrc : index === 1 ? adminImageSrc : nauticoImageSrc}
                   badgeLabel={index === 0 ? "Disponible" : getStatusLabel(item.status, item.type)}
                 />
               ))
