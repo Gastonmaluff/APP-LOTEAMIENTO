@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LotData } from "../types/lots";
 import { getFeatureData, getFeatureTypeFromId, getStatusLabel, statusPalette } from "../utils/mapUtils";
+import type { LotSelectionVisualPayload } from "./LotSelectionFlight";
 
 type TooltipState = {
   x: number;
@@ -14,6 +15,7 @@ type MapViewerProps = {
   highlightedLotIds?: string[];
   onActiveChange: (item: LotData | null) => void;
   onHoverChange: (item: LotData | null) => void;
+  onSelectionVisual?: (payload: LotSelectionVisualPayload | null) => void;
 };
 
 type LotStatus = NonNullable<LotData["status"]>;
@@ -25,7 +27,8 @@ export function MapViewer({
   highlightedLotIds,
   lots,
   onActiveChange,
-  onHoverChange
+  onHoverChange,
+  onSelectionVisual
 }: MapViewerProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const svgRootRef = useRef<SVGSVGElement | null>(null);
@@ -111,6 +114,7 @@ export function MapViewer({
     setTooltip(null);
     onActiveChange(null);
     onHoverChange(null);
+    onSelectionVisual?.(null);
 
     const allDetectedIds = Array.from(svgRoot.querySelectorAll<SVGElement>(svgIdSelector))
       .map((node) => node.id)
@@ -191,6 +195,12 @@ export function MapViewer({
           return;
         }
 
+        if (item.type === "lote") {
+          onSelectionVisual?.(buildSelectionVisualPayload(current));
+        } else {
+          onSelectionVisual?.(null);
+        }
+
         setActiveId(current.id);
         onActiveChange(item);
       };
@@ -236,7 +246,7 @@ export function MapViewer({
       frame.removeEventListener("mouseleave", handleFrameLeave);
       frame.removeEventListener("click", handleFrameClick);
     };
-  }, [hasHighlightFilter, highlightedLotIdsSet, onActiveChange, onHoverChange, svgMarkup]);
+  }, [hasHighlightFilter, highlightedLotIdsSet, onActiveChange, onHoverChange, onSelectionVisual, svgMarkup]);
 
   useEffect(() => {
     const svgRoot = svgRootRef.current;
@@ -292,6 +302,36 @@ export function MapViewer({
       </div>
     </div>
   );
+}
+
+function buildSelectionVisualPayload(node: SVGElement): LotSelectionVisualPayload {
+  const graphicNode = node as SVGGraphicsElement;
+  const bounds = graphicNode.getBBox();
+  const paddingX = Math.max(bounds.width * 0.22, 3.6);
+  const paddingY = Math.max(bounds.height * 0.22, 3.6);
+  const clone = node.cloneNode(true) as SVGElement;
+  clone.removeAttribute("id");
+  clone.style.filter = "drop-shadow(0 12px 26px rgba(89,76,61,0.18))";
+  clone.style.transform = "scale(1)";
+
+  return {
+    id: node.id,
+    markup: `
+      <svg viewBox="${bounds.x - paddingX} ${bounds.y - paddingY} ${bounds.width + paddingX * 2} ${bounds.height + paddingY * 2}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:100%;overflow:visible">
+        ${clone.outerHTML}
+      </svg>
+    `,
+    sourceRect: serializeRect(node.getBoundingClientRect())
+  };
+}
+
+function serializeRect(rect: DOMRect) {
+  return {
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width
+  };
 }
 
 function paintInteractiveNodes(

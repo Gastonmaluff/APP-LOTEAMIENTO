@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import type { LotData } from "../types/lots";
 import { SelectedLotPreview } from "./SelectedLotPreview";
 import {
@@ -12,6 +13,8 @@ import {
 type InfoPanelProps = {
   activeItem: LotData | null;
   hoveredItem: LotData | null;
+  previewTargetRef?: RefObject<HTMLDivElement>;
+  previewVisible?: boolean;
   whatsappHref?: string;
   requestVisitHref?: string;
 };
@@ -19,6 +22,8 @@ type InfoPanelProps = {
 export function InfoPanel({
   activeItem,
   hoveredItem,
+  previewTargetRef,
+  previewVisible = true,
   requestVisitHref = "#contacto",
   whatsappHref = "#contacto"
 }: InfoPanelProps) {
@@ -88,7 +93,9 @@ export function InfoPanel({
       </div>
 
       <div className="space-y-6 p-5 sm:p-6">
-        {item.type === "lote" ? <SelectedLotPreview item={item} /> : null}
+        {item.type === "lote" ? (
+          <SelectedLotPreview isVisible={previewVisible} item={item} previewContainerRef={previewTargetRef} />
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Metric label="Manzana" value={item.manzana ?? "Consultar"} />

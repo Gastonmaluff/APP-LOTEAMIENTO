@@ -1,5 +1,6 @@
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { InfoPanel } from "../../components/InfoPanel";
+import { LotSelectionFlight, type LotSelectionVisualPayload } from "../../components/LotSelectionFlight";
 import { MapViewer } from "../../components/MapViewer";
 import { StatusLegend } from "../../components/StatusLegend";
 import { ContactSection } from "../../components/public/ContactSection";
@@ -49,10 +50,13 @@ export function ProjectPublicPage() {
   const { error, loading, lots, seedRecommended, source } = useLots();
   const [activeItem, setActiveItem] = useState<LotData | null>(null);
   const [hoveredItem, setHoveredItem] = useState<LotData | null>(null);
+  const [previewVisible, setPreviewVisible] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selectionVisual, setSelectionVisual] = useState<LotSelectionVisualPayload | null>(null);
   const [manzanaFilter, setManzanaFilter] = useState("all");
   const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
+  const previewTargetRef = useRef<HTMLDivElement>(null);
 
   const vendibleLots = useMemo(() => lots.filter((item) => item.type === "lote"), [lots]);
   const commonAreas = useMemo(() => lots.filter((item) => item.type === "area"), [lots]);
@@ -132,6 +136,13 @@ export function ProjectPublicPage() {
       filteredLotsCount: filteredLots.length
     });
   }, [filteredLots.length, loading, lots.length, seedRecommended, source]);
+
+  useEffect(() => {
+    if (!activeItem || activeItem.type !== "lote") {
+      setPreviewVisible(true);
+      setSelectionVisual(null);
+    }
+  }, [activeItem]);
 
   function resetFilters() {
     setStatusFilter("all");
@@ -402,6 +413,7 @@ export function ProjectPublicPage() {
                       highlightedLotIds={highlightedLotIds}
                       onActiveChange={setActiveItem}
                       onHoverChange={setHoveredItem}
+                      onSelectionVisual={setSelectionVisual}
                     />
                   </div>
 
@@ -409,6 +421,8 @@ export function ProjectPublicPage() {
                     <InfoPanel
                       activeItem={activeItem}
                       hoveredItem={hoveredItem}
+                      previewTargetRef={previewTargetRef}
+                      previewVisible={previewVisible}
                       requestVisitHref="#contacto"
                       whatsappHref={lotWhatsAppHref}
                     />
@@ -420,6 +434,15 @@ export function ProjectPublicPage() {
         </section>
 
         <ContactSection defaultWhatsAppHref={buildWhatsAppBaseHref()} selectedLot={activeItem} />
+        <LotSelectionFlight
+          visual={selectionVisual}
+          targetRef={previewTargetRef}
+          onStart={() => setPreviewVisible(false)}
+          onComplete={() => {
+            setSelectionVisual(null);
+            setPreviewVisible(true);
+          }}
+        />
 
         <footer className="border-t border-stone-200 bg-[#0d2830]">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-10 text-white sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-10">

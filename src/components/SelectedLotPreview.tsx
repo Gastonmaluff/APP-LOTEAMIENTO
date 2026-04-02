@@ -1,9 +1,12 @@
+import type { RefObject } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { LotData } from "../types/lots";
 import { statusPalette } from "../utils/mapUtils";
 
 type SelectedLotPreviewProps = {
+  isVisible?: boolean;
   item: LotData;
+  previewContainerRef?: RefObject<HTMLDivElement>;
 };
 
 type PreviewState = {
@@ -16,7 +19,11 @@ const previewPadding = {
   y: 8
 };
 
-export function SelectedLotPreview({ item }: SelectedLotPreviewProps) {
+export function SelectedLotPreview({
+  isVisible = true,
+  item,
+  previewContainerRef
+}: SelectedLotPreviewProps) {
   const [preview, setPreview] = useState<PreviewState>(null);
   const [loading, setLoading] = useState(false);
 
@@ -71,7 +78,14 @@ export function SelectedLotPreview({ item }: SelectedLotPreviewProps) {
   }, [dimensions, item]);
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f2ede4_100%)]">
+    <section
+      ref={previewContainerRef}
+      className={[
+        "overflow-hidden rounded-[28px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f2ede4_100%)] transition duration-300",
+        isVisible ? "translate-y-0 scale-100 opacity-100" : "translate-y-2 scale-[0.985] opacity-0"
+      ].join(" ")}
+      aria-hidden={!isVisible}
+    >
       <div className="border-b border-stone-200/80 px-5 py-4 sm:px-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">Vista ampliada</p>
         <p className="mt-2 text-sm leading-7 text-slate-600">
