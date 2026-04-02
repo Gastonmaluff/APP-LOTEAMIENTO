@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { ADMIN_LOTES_ROUTE, PROJECT_NAME, PUBLIC_PROJECT_ROUTE } from "../../config/project";
+import { PROJECT_NAME } from "../../config/project";
+import { AdminInventorySection } from "./AdminLotsPage";
 import { useLots } from "../../contexts/LotsContext";
 import { useMemo } from "react";
 
@@ -19,31 +19,16 @@ export function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[34px] border border-stone-200 bg-white/90 px-6 py-7 shadow-[0_22px_60px_rgba(15,23,42,0.06)] backdrop-blur sm:px-8">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Dashboard</p>
-            <h2 className="font-display mt-3 text-[2.5rem] leading-tight text-[#092930]">{PROJECT_NAME}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-              Una vista general del inventario para seguir disponibilidad, reservas y unidades vendidas.
-            </p>
-          </div>
+      <section>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Administracion</p>
+        <h1 className="font-display mt-3 text-[2.8rem] leading-tight text-[#092930]">{PROJECT_NAME}</h1>
+      </section>
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              to={ADMIN_LOTES_ROUTE}
-              className="rounded-full bg-[#0f2f35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#143b43]"
-            >
-              Gestionar lotes
-            </Link>
-            <Link
-              to={PUBLIC_PROJECT_ROUTE}
-              className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#092930]"
-            >
-              Ver sitio
-            </Link>
-          </div>
-        </div>
+      <section>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Dashboard</p>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+          Una vista general del inventario para seguir disponibilidad, reservas y unidades vendidas.
+        </p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -52,6 +37,8 @@ export function AdminDashboardPage() {
         <DashboardCard label="Reservados" value={String(metrics.reserved)} tone="reserved" />
         <DashboardCard label="Vendidos" value={String(metrics.sold)} tone="sold" />
       </section>
+
+      <AdminInventorySection />
     </div>
   );
 }

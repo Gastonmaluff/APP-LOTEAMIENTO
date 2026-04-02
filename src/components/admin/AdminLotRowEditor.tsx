@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Link } from "react-router-dom";
 import { ADMIN_LOTES_ROUTE, PROJECT_SLUG } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
@@ -23,6 +23,11 @@ const statusOptions = [
   { value: "sold", label: "Vendido" }
 ] as const;
 
+const currencyOptions = [
+  { value: "PYG", label: "Gs" },
+  { value: "USD", label: "USD" }
+] as const;
+
 export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   const { user } = useAuth();
   const [form, setForm] = useState<LotEditorState>(() => toLotEditorState(item));
@@ -38,14 +43,15 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
 
   const computedArea = useMemo(() => computeArea(form.width, form.length), [form.length, form.width]);
   const areaLabel = computedArea ? formatAreaNumber(computedArea) : form.areaDisplay || "Sin calcular";
+  const lotLabel = buildLotLabel(form.manzana, form.lotNumber);
 
-  async function handleSave(statusOverride?: LotData["status"]) {
+  async function handleSave() {
     setSaving(true);
     setMessage(null);
     setError(null);
 
     try {
-      const payload = fromLotEditorState(form, item, statusOverride ?? form.status);
+      const payload = fromLotEditorState(form, item, form.status);
       await updateProjectLot(PROJECT_SLUG, payload, user?.email ?? null);
       setMessage("Guardado");
     } catch (nextError) {
@@ -56,55 +62,38 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   }
 
   return (
-    <article className="rounded-[28px] border border-stone-200 bg-white px-4 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:px-5 xl:px-6">
-      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.4fr)_88px_88px_96px_96px_120px_132px_110px_92px_96px_132px_auto] xl:items-end">
-        <Field label="Nombre">
-          <input
-            value={form.name}
-            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-            className="field-light min-w-0"
-            placeholder="Nombre comercial"
-          />
-        </Field>
-
-        <Field label="Manzana">
-          <input
-            value={form.manzana}
-            onChange={(event) => setForm((current) => ({ ...current, manzana: event.target.value }))}
-            className="field-light"
-          />
-        </Field>
-
+    <article className="rounded-[22px] border border-stone-200 bg-[#fcfbf8] px-3 py-3 shadow-[0_10px_28px_rgba(15,23,42,0.04)] sm:px-4">
+      <div className="grid gap-3 xl:grid-cols-[minmax(180px,1.2fr)_minmax(150px,1.05fr)_110px_120px_88px_120px_126px_150px_170px_auto] xl:items-end">
         <Field label="Lote">
           <input
-            value={form.lotNumber}
-            onChange={(event) => setForm((current) => ({ ...current, lotNumber: event.target.value }))}
-            className="field-light"
+            value={lotLabel}
+            onChange={(event) => applyLotLabel(event.target.value, setForm)}
+            className="field-light min-w-0 px-3 py-2.5"
+            placeholder="Lote M1-01"
           />
         </Field>
 
-        <Field label="Ancho">
-          <input
-            value={form.width}
-            onChange={(event) => setForm((current) => ({ ...current, width: event.target.value }))}
-            className="field-light"
-            inputMode="decimal"
-            placeholder="0"
-          />
+        <Field label="Dimensiones">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={form.width}
+              onChange={(event) => setForm((current) => ({ ...current, width: event.target.value }))}
+              className="field-light px-3 py-2.5"
+              inputMode="decimal"
+              placeholder="Ancho"
+            />
+            <input
+              value={form.length}
+              onChange={(event) => setForm((current) => ({ ...current, length: event.target.value }))}
+              className="field-light px-3 py-2.5"
+              inputMode="decimal"
+              placeholder="Largo"
+            />
+          </div>
         </Field>
 
-        <Field label="Largo">
-          <input
-            value={form.length}
-            onChange={(event) => setForm((current) => ({ ...current, length: event.target.value }))}
-            className="field-light"
-            inputMode="decimal"
-            placeholder="0"
-          />
-        </Field>
-
-        <Field label="m²">
-          <div className="flex min-h-[50px] items-center rounded-2xl border border-stone-200 bg-[#f5f0e7] px-4 text-sm font-semibold text-slate-800">
+        <Field label="m2">
+          <div className="flex min-h-[44px] items-center rounded-2xl border border-stone-200 bg-[#f3ede4] px-3 text-sm font-semibold text-slate-800">
             {areaLabel}
           </div>
         </Field>
@@ -113,29 +102,38 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           <input
             value={form.price}
             onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
-            className="field-light"
+            className="field-light px-3 py-2.5"
             inputMode="decimal"
             placeholder="0"
           />
         </Field>
 
         <Field label="Moneda">
-          <select
-            value={form.currency}
-            onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value as LotEditorState["currency"] }))}
-            className="field-light"
-          >
-            <option value="">-</option>
-            <option value="USD">USD</option>
-            <option value="PYG">PYG</option>
-          </select>
+          <div className="grid grid-cols-2 gap-1 rounded-2xl border border-stone-200 bg-white p-1">
+            {currencyOptions.map((option) => {
+              const isActive = form.currency === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setForm((current) => ({ ...current, currency: option.value }))}
+                  className={[
+                    "rounded-xl px-2 py-2 text-xs font-semibold transition",
+                    isActive ? "bg-[#0f2f35] text-white" : "text-slate-600 hover:bg-[#f3ede4]"
+                  ].join(" ")}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </Field>
 
         <Field label="Cuotas">
           <input
             value={form.installments}
             onChange={(event) => setForm((current) => ({ ...current, installments: event.target.value }))}
-            className="field-light"
+            className="field-light px-3 py-2.5"
             inputMode="numeric"
             placeholder="0"
           />
@@ -145,7 +143,17 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           <input
             value={form.deliveryPercent}
             onChange={(event) => setForm((current) => ({ ...current, deliveryPercent: event.target.value }))}
-            className="field-light"
+            className="field-light px-3 py-2.5"
+            inputMode="decimal"
+            placeholder="0"
+          />
+        </Field>
+
+        <Field label="Precio final">
+          <input
+            value={form.finalPrice}
+            onChange={(event) => setForm((current) => ({ ...current, finalPrice: event.target.value }))}
+            className="field-light px-3 py-2.5"
             inputMode="decimal"
             placeholder="0"
           />
@@ -155,7 +163,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           <select
             value={form.status}
             onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as LotEditorState["status"] }))}
-            className="field-light"
+            className="field-light px-3 py-2.5"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -165,77 +173,48 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           </select>
         </Field>
 
-        <div className="grid gap-2 sm:grid-cols-4 xl:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-1">
           <button
             type="button"
             onClick={() => {
               void handleSave();
             }}
             disabled={saving}
-            className="rounded-full bg-[#0f2f35] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full bg-[#0f2f35] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Guardando..." : "Guardar"}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              void handleSave("available");
-            }}
-            disabled={saving}
-            className="rounded-full border border-[#b9d0b4] bg-[#eef5eb] px-4 py-3 text-sm font-semibold text-[#506a4e] transition hover:bg-[#e6f0e1] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Disponible
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void handleSave("sold");
-            }}
-            disabled={saving}
-            className="rounded-full border border-stone-300 bg-stone-100 px-4 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Vendido
-          </button>
           <Link
             to={`${ADMIN_LOTES_ROUTE}/${item.id}`}
-            className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+            className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
           >
-            Ver ficha
+            Ficha
           </Link>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_180px_180px]">
-        <Field label="Precio final">
-          <input
-            value={form.finalPrice}
-            onChange={(event) => setForm((current) => ({ ...current, finalPrice: event.target.value }))}
-            className="field-light"
-            inputMode="decimal"
-          />
-        </Field>
-
-        <Field label="Financiacion">
+      <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <CompactField label="Financiacion">
           <input
             value={form.financingText}
             onChange={(event) => setForm((current) => ({ ...current, financingText: event.target.value }))}
-            className="field-light"
+            className="field-light px-3 py-2.5"
             placeholder="Ej. 20% entrega + 36 cuotas"
           />
-        </Field>
+        </CompactField>
 
-        <Field label="Descripcion">
+        <CompactField label="Observacion">
           <input
             value={form.description}
             onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-            className="field-light"
+            className="field-light px-3 py-2.5"
             placeholder="Observacion comercial"
           />
-        </Field>
+        </CompactField>
       </div>
 
       {message || error ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           {message ? <span className="rounded-full bg-[#eef5eb] px-3 py-1.5 font-medium text-[#506a4e]">{message}</span> : null}
           {error ? <span className="rounded-full bg-rose-50 px-3 py-1.5 font-medium text-rose-700">{error}</span> : null}
         </div>
@@ -247,8 +226,39 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
 function Field({ children, label }: { children: ReactNode; label: string }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</span>
+      <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</span>
       {children}
     </label>
   );
+}
+
+function CompactField({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function buildLotLabel(manzana: string, lotNumber: string) {
+  const cleanManzana = manzana.trim() || "?";
+  const cleanLotNumber = lotNumber.trim() || "--";
+  return `Lote ${cleanManzana}-${cleanLotNumber}`;
+}
+
+function applyLotLabel(value: string, setForm: Dispatch<SetStateAction<LotEditorState>>) {
+  const normalized = value.trim();
+  const matched = normalized.match(/lote\s+([a-z0-9-]+)\s*-\s*([a-z0-9]+)/i);
+
+  if (!matched) {
+    setForm((current) => ({ ...current, name: current.name }));
+    return;
+  }
+
+  setForm((current) => ({
+    ...current,
+    manzana: matched[1].toUpperCase(),
+    lotNumber: matched[2].toUpperCase()
+  }));
 }
