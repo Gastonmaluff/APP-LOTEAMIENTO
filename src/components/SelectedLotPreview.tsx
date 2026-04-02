@@ -81,7 +81,7 @@ export function SelectedLotPreview({
     <section
       ref={previewContainerRef}
       className={[
-        "overflow-hidden rounded-[28px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f2ede4_100%)] transition duration-300",
+        "overflow-hidden rounded-[28px] border border-stone-200 bg-[linear-gradient(180deg,#f8f4ec_0%,#f2ede4_100%)] transition duration-300 xl:rounded-[30px]",
         isVisible ? "translate-y-0 scale-100 opacity-100" : "translate-y-2 scale-[0.985] opacity-0"
       ].join(" ")}
       aria-hidden={!isVisible}
@@ -95,10 +95,10 @@ export function SelectedLotPreview({
         </p>
       </div>
 
-      <div className="px-4 py-4 sm:px-5 sm:py-5">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6">
         <div
           key={item.id}
-          className="preview-enter relative overflow-hidden rounded-[24px] border border-white/70 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.75),rgba(244,239,232,0.9))] px-3 py-4 shadow-[0_18px_42px_rgba(15,23,42,0.08)] sm:px-4"
+          className="preview-enter relative overflow-hidden rounded-[24px] border border-white/70 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.75),rgba(244,239,232,0.9))] px-3 py-4 shadow-[0_18px_42px_rgba(15,23,42,0.08)] sm:px-4 xl:min-h-[360px] xl:px-6 xl:py-6"
         >
           <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(to right, rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.12) 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
 
@@ -106,7 +106,7 @@ export function SelectedLotPreview({
             <div className="flex min-h-[280px] items-center justify-center text-sm text-slate-500">Preparando lote...</div>
           ) : preview ? (
             <div
-              className="relative z-10 mx-auto w-full max-w-[320px]"
+              className="relative z-10 mx-auto w-full max-w-[320px] xl:max-w-[460px]"
               dangerouslySetInnerHTML={{ __html: preview.markup }}
             />
           ) : (

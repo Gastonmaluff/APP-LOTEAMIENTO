@@ -358,9 +358,9 @@ export function ProjectPublicPage() {
         </section>
 
         <section id="explorar-lotes" className="bg-[#fbf8f2] py-20 sm:py-24">
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-10">
-            <div className="grid gap-12 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start xl:gap-14">
-              <div className="space-y-6">
+          <div className="mx-auto max-w-[1540px] px-4 sm:px-6 lg:px-8 xl:px-10">
+            <div className="space-y-8 xl:space-y-10">
+              <div className="grid gap-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(260px,0.5fr)] xl:items-end">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">
                     Explora los lotes disponibles
@@ -405,8 +405,8 @@ export function ProjectPublicPage() {
                   </section>
                 )}
 
-                <div className="grid gap-8 xl:grid-cols-[minmax(0,1.7fr)_340px]">
-                  <div className="min-w-0 overflow-hidden">
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] xl:gap-10">
+                  <div className="min-w-0 overflow-hidden xl:pt-2">
                     <MapViewer
                       hasHighlightFilter={hasActiveFilters}
                       lots={lots}
