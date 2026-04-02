@@ -3,7 +3,6 @@ import { InfoPanel } from "../../components/InfoPanel";
 import { LotDesktopPanels } from "../../components/LotDesktopPanels";
 import { LotSelectionFlight, type LotSelectionVisualPayload } from "../../components/LotSelectionFlight";
 import { MapViewer } from "../../components/MapViewer";
-import { StatusLegend } from "../../components/StatusLegend";
 import { ContactSection } from "../../components/public/ContactSection";
 import { useLots } from "../../contexts/LotsContext";
 import type { LotData } from "../../types/lots";
@@ -308,20 +307,15 @@ export function ProjectPublicPage() {
         <section id="explorar-lotes" className="bg-[#fbf8f2] py-20 sm:py-24">
           <div className="mx-auto max-w-[1540px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <div className="space-y-8 xl:space-y-10">
-              <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+              <div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">
+                  <h2 className="font-display text-[2rem] leading-tight text-[#092930] sm:text-[2.3rem] lg:text-[2.8rem]">
                     Explora los lotes disponibles
-                  </p>
-                  <h2 className="font-display mt-4 text-[2rem] leading-tight text-[#092930] sm:text-[2.3rem] lg:text-[2.8rem]">
-                    El mapa te ayuda a ubicar cada oportunidad con claridad.
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-600">
-                    Selecciona un lote para conocer superficie, precio, estado y formas de contacto en el mismo flujo.
+                    Selecciona un lote en el mapa para ver su precio, financiacion y detalles.
                   </p>
                 </div>
-
-                <StatusLegend variant="light" />
               </div>
 
               <div className="min-w-0 space-y-6">
