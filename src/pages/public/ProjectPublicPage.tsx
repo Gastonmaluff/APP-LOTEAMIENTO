@@ -1,16 +1,10 @@
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { InfoPanel } from "../../components/InfoPanel";
 import { LotDesktopPanels } from "../../components/LotDesktopPanels";
 import { LotSelectionFlight, type LotSelectionVisualPayload } from "../../components/LotSelectionFlight";
 import { MapViewer } from "../../components/MapViewer";
 import { StatusLegend } from "../../components/StatusLegend";
 import { ContactSection } from "../../components/public/ContactSection";
-import {
-  PublicFilters,
-  type CurrencyFilter,
-  type PriceFilter,
-  type StatusFilter
-} from "../../components/public/PublicFilters";
 import { useLots } from "../../contexts/LotsContext";
 import type { LotData } from "../../types/lots";
 import { formatPrice, getStatusLabel } from "../../utils/mapUtils";
@@ -48,15 +42,11 @@ const projectVisuals = [
 ];
 
 export function ProjectPublicPage() {
-  const { error, loading, lots, seedRecommended, source } = useLots();
+  const { loading, lots, seedRecommended, source } = useLots();
   const [activeItem, setActiveItem] = useState<LotData | null>(null);
   const [hoveredItem, setHoveredItem] = useState<LotData | null>(null);
   const [previewVisible, setPreviewVisible] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectionVisual, setSelectionVisual] = useState<LotSelectionVisualPayload | null>(null);
-  const [manzanaFilter, setManzanaFilter] = useState("all");
-  const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>("all");
-  const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const previewTargetRef = useRef<HTMLDivElement>(null);
 
   const vendibleLots = useMemo(() => lots.filter((item) => item.type === "lote"), [lots]);
@@ -72,39 +62,10 @@ export function ProjectPublicPage() {
     [vendibleLots]
   );
 
-  const manzanaOptions = useMemo(
-    () =>
-      Array.from(new Set(vendibleLots.map((item) => item.manzana).filter((value): value is string => Boolean(value)))).sort(
-        (left, right) => left.localeCompare(right, "es")
-      ),
-    [vendibleLots]
-  );
-
-  const currencyOptions = useMemo(() => {
-    const dynamicOptions = Array.from(
-      new Set(vendibleLots.map((item) => item.currency).filter((value): value is "USD" | "PYG" => Boolean(value)))
-    );
-
-    return ["all", ...dynamicOptions] as CurrencyFilter[];
-  }, [vendibleLots]);
-
-  const filteredLots = useMemo(() => {
-    return vendibleLots.filter((item) => {
-      const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-      const matchesManzana = manzanaFilter === "all" || item.manzana === manzanaFilter;
-      const matchesCurrency = currencyFilter === "all" || item.currency === currencyFilter;
-      const matchesPrice = matchesPriceBand(item, priceFilter);
-
-      return matchesStatus && matchesManzana && matchesCurrency && matchesPrice;
-    });
-  }, [currencyFilter, manzanaFilter, priceFilter, statusFilter, vendibleLots]);
-
-  const highlightedLotIds = useMemo(() => filteredLots.map((item) => item.id), [filteredLots]);
-  const hasActiveFilters =
-    statusFilter !== "all" || manzanaFilter !== "all" || currencyFilter !== "all" || priceFilter !== "all";
+  const highlightedLotIds = useMemo(() => vendibleLots.map((item) => item.id), [vendibleLots]);
 
   const curatedLots = useMemo(() => {
-    return [...filteredLots]
+    return [...vendibleLots]
       .sort((left, right) => {
         const leftPriority = getStatusPriority(left.status);
         const rightPriority = getStatusPriority(right.status);
@@ -116,7 +77,7 @@ export function ProjectPublicPage() {
         return getNumericPrice(left) - getNumericPrice(right);
       })
       .slice(0, 3);
-  }, [filteredLots]);
+  }, [vendibleLots]);
 
   const selectedCommercialItem = activeItem ?? hoveredItem;
   const lotWhatsAppHref = buildWhatsAppHref(
@@ -134,9 +95,9 @@ export function ProjectPublicPage() {
       loading,
       seedRecommended,
       lotsCount: lots.length,
-      filteredLotsCount: filteredLots.length
+      vendibleLotsCount: vendibleLots.length
     });
-  }, [filteredLots.length, loading, lots.length, seedRecommended, source]);
+  }, [loading, lots.length, seedRecommended, source, vendibleLots.length]);
 
   useEffect(() => {
     if (!activeItem || activeItem.type !== "lote") {
@@ -145,21 +106,7 @@ export function ProjectPublicPage() {
     }
   }, [activeItem]);
 
-  function resetFilters() {
-    setStatusFilter("all");
-    setManzanaFilter("all");
-    setCurrencyFilter("all");
-    setPriceFilter("all");
-  }
-
   function focusAvailableLots() {
-    startTransition(() => {
-      setStatusFilter("available");
-      setManzanaFilter("all");
-      setCurrencyFilter("all");
-      setPriceFilter("all");
-    });
-
     document.getElementById("explorar-lotes")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -361,7 +308,7 @@ export function ProjectPublicPage() {
         <section id="explorar-lotes" className="bg-[#fbf8f2] py-20 sm:py-24">
           <div className="mx-auto max-w-[1540px] px-4 sm:px-6 lg:px-8 xl:px-10">
             <div className="space-y-8 xl:space-y-10">
-              <div className="grid gap-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(260px,0.5fr)] xl:items-end">
+              <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">
                     Explora los lotes disponibles
@@ -375,41 +322,13 @@ export function ProjectPublicPage() {
                 </div>
 
                 <StatusLegend variant="light" />
-
-                <div className="space-y-3 text-sm leading-7 text-slate-600">
-                  <p>Filtra por estado, manzana, moneda o rango de precio para concentrarte en las opciones que mas te interesan.</p>
-                  <p>Si no ves lo que buscas, reinicia los filtros y vuelve a recorrer todo el loteamiento.</p>
-                </div>
               </div>
 
               <div className="min-w-0 space-y-6">
-                <PublicFilters
-                  availableCount={metrics.available}
-                  currencyFilter={currencyFilter}
-                  currencyOptions={currencyOptions}
-                  manzanaFilter={manzanaFilter}
-                  manzanaOptions={manzanaOptions}
-                  onCurrencyChange={setCurrencyFilter}
-                  onManzanaChange={setManzanaFilter}
-                  onPriceChange={setPriceFilter}
-                  onReset={resetFilters}
-                  onStatusChange={setStatusFilter}
-                  priceFilter={priceFilter}
-                  resultCount={filteredLots.length}
-                  statusFilter={statusFilter}
-                  totalCount={metrics.total}
-                />
-
-                {(error || seedRecommended) && (
-                  <section className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-4 text-sm leading-7 text-slate-600">
-                    Si un lote es de tu interes, consultanos para confirmar condiciones y coordinar una atencion personalizada.
-                  </section>
-                )}
-
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] xl:gap-10">
                   <div className="min-w-0 overflow-hidden xl:pt-2">
                     <MapViewer
-                      hasHighlightFilter={hasActiveFilters}
+                      hasHighlightFilter={false}
                       lots={lots}
                       highlightedLotIds={highlightedLotIds}
                       onActiveChange={setActiveItem}
@@ -577,43 +496,6 @@ function buildWhatsAppBaseHref() {
 
 function buildWhatsAppHref(message: string) {
   return `${buildWhatsAppBaseHref()}${encodeURIComponent(message)}`;
-}
-
-function matchesPriceBand(item: LotData, priceFilter: PriceFilter) {
-  if (priceFilter === "all") {
-    return true;
-  }
-
-  const numericPrice = getNumericPrice(item);
-  if (numericPrice === Number.MAX_SAFE_INTEGER) {
-    return false;
-  }
-
-  if (item.currency === "USD") {
-    if (priceFilter === "entry") {
-      return numericPrice <= 60000;
-    }
-
-    if (priceFilter === "mid") {
-      return numericPrice > 60000 && numericPrice <= 100000;
-    }
-
-    return numericPrice > 100000;
-  }
-
-  if (item.currency === "PYG") {
-    if (priceFilter === "entry") {
-      return numericPrice <= 3500000;
-    }
-
-    if (priceFilter === "mid") {
-      return numericPrice > 3500000 && numericPrice <= 3800000;
-    }
-
-    return numericPrice > 3800000;
-  }
-
-  return false;
 }
 
 function getNumericPrice(item: LotData) {
