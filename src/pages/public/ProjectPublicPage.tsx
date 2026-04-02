@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { InfoPanel } from "../../components/InfoPanel";
+import { LotDesktopPanels } from "../../components/LotDesktopPanels";
 import { LotSelectionFlight, type LotSelectionVisualPayload } from "../../components/LotSelectionFlight";
 import { MapViewer } from "../../components/MapViewer";
 import { StatusLegend } from "../../components/StatusLegend";
@@ -428,6 +429,8 @@ export function ProjectPublicPage() {
                     />
                   </div>
                 </div>
+
+                <LotDesktopPanels item={selectedCommercialItem?.type === "road" ? null : selectedCommercialItem} />
               </div>
             </div>
           </div>
