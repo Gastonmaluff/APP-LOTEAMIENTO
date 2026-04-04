@@ -64,10 +64,10 @@ export function AdminInventorySection() {
         </div>
       </div>
 
-      {loading ? (
-        <article className="rounded-[28px] border border-stone-200 bg-white px-6 py-7 text-sm text-slate-600 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-          Cargando inventario...
-        </article>
+      {loading ? <InventorySyncBanner /> : null}
+
+      {groupedLots.length === 0 && loading ? (
+        <InventorySkeleton />
       ) : groupedLots.length === 0 ? (
         <article className="rounded-[28px] border border-stone-200 bg-white px-6 py-7 text-sm text-slate-600 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
           No encontramos lotes que coincidan con esa busqueda.
@@ -116,6 +116,74 @@ export function AdminInventorySection() {
         </div>
       </section>
     </section>
+  );
+}
+
+function InventorySyncBanner() {
+  return (
+    <div className="overflow-hidden rounded-[22px] border border-stone-200 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
+      <div className="flex items-center justify-between gap-4 px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#715b3b]">
+          Actualizando inventario
+        </p>
+        <p className="text-xs text-slate-500">Cargando la informacion mas reciente...</p>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden bg-[#efe7dd]">
+        <div className="h-full w-1/2 animate-[inventory-loader_1.15s_ease-in-out_infinite] rounded-full bg-[#8fa88b]" />
+      </div>
+    </div>
+  );
+}
+
+function InventorySkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map((groupIndex) => (
+        <section
+          key={groupIndex}
+          className="rounded-[30px] border border-stone-200 bg-white/95 px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:px-5"
+        >
+          <div className="mb-4 flex items-center justify-between gap-4 border-b border-stone-200 pb-4">
+            <div className="h-9 w-32 animate-pulse rounded-full bg-stone-100" />
+            <div className="h-4 w-16 animate-pulse rounded-full bg-stone-100" />
+          </div>
+
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((rowIndex) => (
+              <div
+                key={`${groupIndex}-${rowIndex}`}
+                className="rounded-[18px] border border-stone-200 bg-[#fcfbf8] px-3 py-3 sm:px-4"
+              >
+                <div className="flex items-start justify-between gap-3 xl:hidden">
+                  <div className="min-w-0 flex-1">
+                    <div className="h-4 w-28 animate-pulse rounded-full bg-stone-100" />
+                    <div className="mt-2 h-3 w-36 animate-pulse rounded-full bg-stone-100" />
+                  </div>
+                  <div className="h-6 w-20 shrink-0 animate-pulse rounded-full bg-stone-100" />
+                </div>
+
+                <div className="mt-3 flex items-end justify-between gap-3 border-t border-stone-200/70 pt-3 xl:hidden">
+                  <div className="min-w-0 flex-1">
+                    <div className="h-4 w-24 animate-pulse rounded-full bg-stone-100" />
+                    <div className="mt-2 h-3 w-32 animate-pulse rounded-full bg-stone-100" />
+                  </div>
+                  <div className="h-8 w-20 shrink-0 animate-pulse rounded-full bg-stone-100" />
+                </div>
+
+                <div className="hidden gap-3 xl:grid xl:grid-cols-[minmax(180px,1.1fr)_minmax(170px,0.95fr)_minmax(130px,0.8fr)_minmax(180px,1fr)_minmax(120px,0.7fr)_auto]">
+                  <div className="h-4 w-32 animate-pulse rounded-full bg-stone-100" />
+                  <div className="h-4 w-40 animate-pulse rounded-full bg-stone-100" />
+                  <div className="h-4 w-28 animate-pulse rounded-full bg-stone-100" />
+                  <div className="h-4 w-36 animate-pulse rounded-full bg-stone-100" />
+                  <div className="h-7 w-24 justify-self-end animate-pulse rounded-full bg-stone-100" />
+                  <div className="h-9 w-24 justify-self-end animate-pulse rounded-full bg-stone-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
   );
 }
 
