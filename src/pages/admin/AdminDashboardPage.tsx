@@ -18,20 +18,13 @@ export function AdminDashboardPage() {
   }, [lots]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       <section>
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Administracion</p>
-        <h1 className="font-display mt-3 text-[2.8rem] leading-tight text-[#092930]">{PROJECT_NAME}</h1>
+        <h1 className="font-display mt-2 text-[2.2rem] leading-tight text-[#092930] sm:mt-3 sm:text-[2.8rem]">{PROJECT_NAME}</h1>
       </section>
 
-      <section>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Dashboard</p>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-          Una vista general del inventario para seguir disponibilidad, reservas y unidades vendidas.
-        </p>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <DashboardCard label="Total de lotes" value={String(metrics.total)} tone="neutral" />
         <DashboardCard label="Disponibles" value={String(metrics.available)} tone="available" />
         <DashboardCard label="Reservados" value={String(metrics.reserved)} tone="reserved" />
@@ -62,11 +55,15 @@ function DashboardCard({
           : "bg-[#f6f1e8] text-[#0f2f35]";
 
   return (
-    <article className="rounded-[28px] border border-stone-200 bg-white/92 px-6 py-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</p>
-      <div className="mt-5 flex items-center justify-between gap-4">
-        <p className="font-display text-[3rem] leading-none text-[#092930]">{value}</p>
-        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${toneClass}`}>{label}</span>
+    <article className="rounded-[20px] border border-stone-200 bg-white/92 px-3 py-3 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:rounded-[28px] sm:px-6 sm:py-6">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-[11px] sm:tracking-[0.24em]">
+        {label}
+      </p>
+      <div className="mt-2.5 flex items-end justify-between gap-2 sm:mt-5 sm:items-center sm:gap-4">
+        <p className="font-display text-[2.15rem] leading-none text-[#092930] sm:text-[3rem]">{value}</p>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold sm:px-3 sm:py-1.5 sm:text-xs ${toneClass}`}>
+          {label}
+        </span>
       </div>
     </article>
   );
