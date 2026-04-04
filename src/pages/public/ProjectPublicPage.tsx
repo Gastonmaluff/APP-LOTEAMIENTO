@@ -363,14 +363,13 @@ export function ProjectPublicPage() {
 
         <footer className="border-t border-stone-200 bg-[#0d2830]">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-10 text-white sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-10">
-            <div className="flex items-center gap-4">
-              <span className="rounded-[16px] bg-white/10 p-2">
-                <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-12 w-12 rounded-[12px] object-cover" />
-              </span>
-              <div>
-                <p className="font-display text-[1.9rem] leading-none">Viva Lago</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.24em] text-white/55">km 9 Acaray - Ciudad del Este</p>
-              </div>
+            <div className="flex flex-col gap-4">
+              <img
+                src={logoImageSrc}
+                alt="Logo de Viva Lago Country."
+                className="h-16 w-auto object-contain brightness-0 invert"
+              />
+              <p className="text-xs uppercase tracking-[0.24em] text-white/55">km 9 Acaray - Ciudad del Este</p>
             </div>
 
             <div className="text-sm leading-7 text-white/65">

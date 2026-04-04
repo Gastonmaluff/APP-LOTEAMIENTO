@@ -368,8 +368,8 @@ function paintInteractiveNodes(
     const status = statusesById.get(node.id);
     const isHighlightedLot = !hasHighlightFilter || highlightedLotIdsSet.has(node.id);
 
-    node.style.stroke = isActive ? "#6f675d" : isHovered ? "#857d73" : "#a29a90";
-    node.style.strokeWidth = featureType === "road" ? "0.88" : isActive ? "1.16" : isHovered ? "1.04" : "0.98";
+    node.style.stroke = isActive ? "#4f6450" : isHovered ? "#857d73" : "#a29a90";
+    node.style.strokeWidth = featureType === "road" ? "0.88" : isActive ? "2.8" : isHovered ? "1.04" : "0.98";
     node.style.filter = "none";
     node.style.transform = "scale(1)";
 
@@ -377,10 +377,11 @@ function paintInteractiveNodes(
       node.style.fill = status ? statusPalette[status] : "#96aa8f";
       node.style.opacity = isActive ? "1" : isHovered ? "0.995" : isHighlightedLot ? "0.985" : "0.2";
       if (isActive) {
-        node.style.stroke = "#5f584e";
-        node.style.strokeWidth = "1.22";
-        node.style.filter = "brightness(1.045) drop-shadow(0 0 12px rgba(89, 76, 61, 0.15))";
-        node.style.transform = "scale(1.015)";
+        node.style.stroke = "#445a45";
+        node.style.strokeWidth = "3";
+        node.style.filter = "brightness(1.08) drop-shadow(0 0 14px rgba(68, 90, 69, 0.32))";
+        node.style.transform = "scale(1.018)";
+        node.parentElement?.append(node);
       } else if (isHovered) {
         node.style.stroke = "#786f64";
         node.style.strokeWidth = "1.08";
