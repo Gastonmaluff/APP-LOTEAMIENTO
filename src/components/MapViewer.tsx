@@ -16,6 +16,8 @@ type MapViewerProps = {
   onActiveChange: (item: LotData | null) => void;
   onHoverChange: (item: LotData | null) => void;
   onSelectionVisual?: (payload: LotSelectionVisualPayload | null) => void;
+  readOnly?: boolean;
+  selectedLotId?: string | null;
 };
 
 type LotStatus = NonNullable<LotData["status"]>;
@@ -28,7 +30,9 @@ export function MapViewer({
   lots,
   onActiveChange,
   onHoverChange,
-  onSelectionVisual
+  onSelectionVisual,
+  readOnly = false,
+  selectedLotId
 }: MapViewerProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const svgRootRef = useRef<SVGSVGElement | null>(null);
@@ -110,9 +114,9 @@ export function MapViewer({
     svgRoot.style.overflow = "visible";
 
     setHoveredId(null);
-    setActiveId(null);
+    setActiveId(selectedLotId ?? null);
     setTooltip(null);
-    onActiveChange(null);
+    onActiveChange(selectedLotId ? getFeatureData(selectedLotId, lotsByIdRef.current) : null);
     onHoverChange(null);
     onSelectionVisual?.(null);
 
@@ -136,7 +140,7 @@ export function MapViewer({
         return () => undefined;
       }
 
-      node.style.cursor = featureType === "road" ? "default" : "pointer";
+      node.style.cursor = readOnly || featureType === "road" ? "default" : "pointer";
       node.style.transition =
         "fill 220ms ease, opacity 220ms ease, filter 220ms ease, transform 260ms ease, stroke 220ms ease, stroke-width 220ms ease";
       node.style.transformBox = "fill-box";
@@ -148,6 +152,10 @@ export function MapViewer({
       const handleMouseEnter = (event: Event) => {
         const current = event.currentTarget as SVGElement;
         const item = getFeatureData(current.id, lotsByIdRef.current);
+
+        if (readOnly) {
+          return;
+        }
 
         setHoveredId(current.id);
         onHoverChange(item);
@@ -168,7 +176,7 @@ export function MapViewer({
       const handleMouseMove = (event: Event) => {
         const current = event.currentTarget as SVGElement;
         const item = getFeatureData(current.id, lotsByIdRef.current);
-        if (!item || item.type === "road") {
+        if (readOnly || !item || item.type === "road") {
           return;
         }
 
@@ -182,12 +190,20 @@ export function MapViewer({
       };
 
       const handleMouseLeave = () => {
+        if (readOnly) {
+          return;
+        }
+
         setHoveredId((currentId) => (currentId === node.id ? null : currentId));
         setTooltip((currentTooltip) => (currentTooltip?.item.id === node.id ? null : currentTooltip));
         onHoverChange(null);
       };
 
       const handleClick = (event: Event) => {
+        if (readOnly) {
+          return;
+        }
+
         const current = event.currentTarget as SVGElement;
         const item = getFeatureData(current.id, lotsByIdRef.current);
 
@@ -219,12 +235,20 @@ export function MapViewer({
     });
 
     const handleFrameLeave = () => {
+      if (readOnly) {
+        return;
+      }
+
       setHoveredId(null);
       setTooltip(null);
       onHoverChange(null);
     };
 
     const handleFrameClick = (event: MouseEvent) => {
+      if (readOnly) {
+        return;
+      }
+
       const target = event.target as Element | null;
       if (!target) {
         return;
@@ -239,14 +263,22 @@ export function MapViewer({
 
     frame.addEventListener("mouseleave", handleFrameLeave);
     frame.addEventListener("click", handleFrameClick);
-    paintInteractiveNodes(svgRoot, null, null, statusesById, highlightedLotIdsSet, hasHighlightFilter);
+    paintInteractiveNodes(svgRoot, null, selectedLotId ?? null, statusesById, highlightedLotIdsSet, hasHighlightFilter);
 
     return () => {
       cleanups.forEach((cleanup) => cleanup());
       frame.removeEventListener("mouseleave", handleFrameLeave);
       frame.removeEventListener("click", handleFrameClick);
     };
-  }, [hasHighlightFilter, highlightedLotIdsSet, onActiveChange, onHoverChange, onSelectionVisual, svgMarkup]);
+  }, [hasHighlightFilter, highlightedLotIdsSet, onActiveChange, onHoverChange, onSelectionVisual, readOnly, selectedLotId, svgMarkup]);
+
+  useEffect(() => {
+    if (selectedLotId === undefined) {
+      return;
+    }
+
+    setActiveId(selectedLotId);
+  }, [selectedLotId]);
 
   useEffect(() => {
     const svgRoot = svgRootRef.current;

@@ -11,6 +11,8 @@ export type LotData = {
   deliveryPercent?: number | null;
   installments?: number | null;
   financingText?: string | null;
+  photo1Url?: string | null;
+  photo2Url?: string | null;
   dimensions?: {
     width?: number | null;
     length?: number | null;

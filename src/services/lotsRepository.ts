@@ -84,6 +84,8 @@ function normalizeLot(id: string, rawData: FirestoreLotRecord): LotData {
     deliveryPercent: normalizeNullableNumber(rawData.deliveryPercent),
     installments: normalizeNullableNumber(rawData.installments),
     financingText: normalizeNullableString(rawData.financingText),
+    photo1Url: normalizeNullableString(rawData.photo1Url),
+    photo2Url: normalizeNullableString(rawData.photo2Url),
     dimensions: normalizeDimensions(rawData.dimensions),
     status: normalizeStatus(rawData.status),
     description: normalizeNullableString(rawData.description),
@@ -186,6 +188,8 @@ function serializeLotForWrite(item: LotData) {
     deliveryPercent: item.deliveryPercent ?? null,
     installments: item.installments ?? null,
     financingText: item.financingText ?? null,
+    photo1Url: item.photo1Url ?? null,
+    photo2Url: item.photo2Url ?? null,
     dimensions: item.dimensions
       ? {
           width: item.dimensions.width ?? null,

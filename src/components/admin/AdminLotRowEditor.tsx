@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetSt
 import { Link } from "react-router-dom";
 import { ADMIN_LOTES_ROUTE, PROJECT_SLUG } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
+import { deleteProjectLotPhoto, uploadProjectLotPhoto, type LotPhotoSlot } from "../../services/lotPhotosRepository";
 import { updateProjectLot } from "../../services/lotsRepository";
 import type { LotData } from "../../types/lots";
 import {
@@ -12,6 +13,7 @@ import {
   type LotEditorState
 } from "../../utils/adminLotForm";
 import { getCommercialPriceSummary, getStatusLabel } from "../../utils/mapUtils";
+import { AdminLotPreviewModal } from "./AdminLotPreviewModal";
 
 type AdminLotRowEditorProps = {
   item: LotData;
@@ -33,7 +35,9 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   const { user } = useAuth();
   const [form, setForm] = useState<LotEditorState>(() => toLotEditorState(item));
   const [isEditing, setIsEditing] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhotoSlot, setUploadingPhotoSlot] = useState<LotPhotoSlot | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +52,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   const lotLabel = buildLotLabel(form.manzana, form.lotNumber);
   const lotMeasures = formatLotMeasures(form.width, form.length, areaLabel);
   const planLabel = formatPlanSummary(form.deliveryPercent, form.installments, form.financingText, form.currency);
+  const previewItem = useMemo(() => fromLotEditorState(form, item, form.status), [form, item]);
   const commercialPrice = getCommercialPriceSummary({
     currency: form.currency || null,
     deliveryPercent: parseNumberLike(form.deliveryPercent),
@@ -59,19 +64,79 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   const statusLabel = getStatusLabel(form.status || null, "lote");
   const statusBadgeClass = getStatusBadgeClass(form.status || null);
 
-  async function handleSave() {
+  async function persistFormState(nextForm: LotEditorState, successMessage: string) {
     setSaving(true);
     setMessage(null);
     setError(null);
 
     try {
-      const payload = fromLotEditorState(form, item, form.status);
+      const payload = fromLotEditorState(nextForm, item, nextForm.status);
       await updateProjectLot(PROJECT_SLUG, payload, user?.email ?? null);
-      setMessage("Guardado");
+      setForm(nextForm);
+      setMessage(successMessage);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "No se pudo guardar.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSave() {
+    await persistFormState(form, "Guardado");
+  }
+
+  async function handlePhotoUpload(slot: LotPhotoSlot, files: FileList | null) {
+    const file = files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const previousUrl = form[slot];
+    setUploadingPhotoSlot(slot);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const photoUrl = await uploadProjectLotPhoto(PROJECT_SLUG, item.id, slot, file);
+      const nextForm = { ...form, [slot]: photoUrl };
+      await persistFormState(nextForm, slot === "photo1Url" ? "Foto 1 actualizada" : "Foto 2 actualizada");
+
+      if (previousUrl && previousUrl !== photoUrl) {
+        try {
+          await deleteProjectLotPhoto(previousUrl);
+        } catch {
+          // Mantener la URL nueva guardada aunque la limpieza del archivo viejo falle.
+        }
+      }
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "No se pudo subir la foto.");
+    } finally {
+      setUploadingPhotoSlot(null);
+    }
+  }
+
+  async function handlePhotoDelete(slot: LotPhotoSlot) {
+    const previousUrl = form[slot];
+    if (!previousUrl) {
+      return;
+    }
+
+    setUploadingPhotoSlot(slot);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const nextForm = { ...form, [slot]: "" };
+      await persistFormState(nextForm, slot === "photo1Url" ? "Foto 1 eliminada" : "Foto 2 eliminada");
+      try {
+        await deleteProjectLotPhoto(previousUrl);
+      } catch {
+        // No bloquear la eliminacion logica del lote si la limpieza fisica falla.
+      }
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "No se pudo eliminar la foto.");
+    } finally {
+      setUploadingPhotoSlot(null);
     }
   }
 
@@ -100,13 +165,22 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
             <p className="mt-0.5 truncate text-[11px] text-slate-600">{planLabel}</p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsEditing((current) => !current)}
-            className="shrink-0 rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
-          >
-            {isEditing ? "Cerrar" : "Editar"}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
+            >
+              Ver lote
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditing((current) => !current)}
+              className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+            >
+              {isEditing ? "Cerrar" : "Editar"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -135,6 +209,13 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
         </div>
 
         <div className="flex flex-wrap gap-2 xl:justify-end">
+          <button
+            type="button"
+            onClick={() => setIsPreviewOpen(true)}
+            className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
+          >
+            Ver lote
+          </button>
           <button
             type="button"
             onClick={() => setIsEditing((current) => !current)}
@@ -293,6 +374,31 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
             </CompactField>
           </div>
 
+          <div className="mt-4 grid gap-3 xl:grid-cols-2">
+            <PhotoUploadField
+              label="Foto 1"
+              photoUrl={form.photo1Url}
+              busy={uploadingPhotoSlot === "photo1Url"}
+              onDelete={() => {
+                void handlePhotoDelete("photo1Url");
+              }}
+              onUpload={(files) => {
+                void handlePhotoUpload("photo1Url", files);
+              }}
+            />
+            <PhotoUploadField
+              label="Foto 2"
+              photoUrl={form.photo2Url}
+              busy={uploadingPhotoSlot === "photo2Url"}
+              onDelete={() => {
+                void handlePhotoDelete("photo2Url");
+              }}
+              onUpload={(files) => {
+                void handlePhotoUpload("photo2Url", files);
+              }}
+            />
+          </div>
+
           <p className="mt-3 text-xs leading-5 text-slate-500">{commercialPrice.caption}</p>
 
           {message || error ? (
@@ -303,6 +409,8 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           ) : null}
         </div>
       ) : null}
+
+      {isPreviewOpen ? <AdminLotPreviewModal item={previewItem} onClose={() => setIsPreviewOpen(false)} /> : null}
     </article>
   );
 }
@@ -331,6 +439,61 @@ function CompactField({ children, label }: { children: ReactNode; label: string 
       <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</span>
       {children}
     </label>
+  );
+}
+
+function PhotoUploadField({
+  busy,
+  label,
+  onDelete,
+  onUpload,
+  photoUrl
+}: {
+  busy: boolean;
+  label: string;
+  onDelete: () => void;
+  onUpload: (files: FileList | null) => void;
+  photoUrl: string;
+}) {
+  return (
+    <div className="rounded-[22px] border border-stone-200 bg-white/80 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+        <div className="flex items-center gap-2">
+          <label className="cursor-pointer rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]">
+            {busy ? "Subiendo..." : photoUrl ? "Reemplazar" : "Subir"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={busy}
+              onChange={(event) => {
+                onUpload(event.target.files);
+                event.target.value = "";
+              }}
+            />
+          </label>
+          {photoUrl ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Eliminar
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {photoUrl ? (
+        <img src={photoUrl} alt={label} className="mt-3 h-28 w-full rounded-[16px] object-cover" />
+      ) : (
+        <div className="mt-3 flex h-28 items-center justify-center rounded-[16px] bg-[#f6f1e8] text-xs font-medium text-slate-500">
+          {label} pendiente
+        </div>
+      )}
+    </div>
   );
 }
 

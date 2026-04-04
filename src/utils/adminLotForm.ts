@@ -16,6 +16,8 @@ export type LotEditorState = {
   deliveryPercent: string;
   installments: string;
   financingText: string;
+  photo1Url: string;
+  photo2Url: string;
   status: "" | "available" | "reserved" | "sold";
   description: string;
   sourcePage: number | null;
@@ -41,6 +43,8 @@ export function toLotEditorState(item: LotData): LotEditorState {
     deliveryPercent: item.deliveryPercent === null || item.deliveryPercent === undefined ? "" : String(item.deliveryPercent),
     installments: item.installments === null || item.installments === undefined ? "" : String(item.installments),
     financingText: item.financingText ?? "",
+    photo1Url: item.photo1Url ?? "",
+    photo2Url: item.photo2Url ?? "",
     status: item.status ?? "",
     description: item.description ?? "",
     sourcePage: item.sourcePage ?? null
@@ -67,6 +71,8 @@ export function fromLotEditorState(form: LotEditorState, previous: LotData, stat
     deliveryPercent: parseNumericInput(form.deliveryPercent),
     installments: parseNumericInput(form.installments),
     financingText: normalizeBlank(form.financingText),
+    photo1Url: normalizeBlank(form.photo1Url),
+    photo2Url: normalizeBlank(form.photo2Url),
     dimensions:
       widthNumber !== null || lengthNumber !== null || previous.dimensions
         ? {
