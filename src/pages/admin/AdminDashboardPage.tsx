@@ -1,10 +1,14 @@
+import { useMemo, useState } from "react";
+import { AdminFinanceSection } from "../../components/admin/AdminFinanceSection";
 import { PROJECT_NAME } from "../../config/project";
-import { AdminInventorySection } from "./AdminLotsPage";
 import { useLots } from "../../contexts/LotsContext";
-import { useMemo } from "react";
+import { AdminInventorySection } from "./AdminLotsPage";
+
+type AdminModule = "inventory" | "finance";
 
 export function AdminDashboardPage() {
   const { lots } = useLots();
+  const [activeModule, setActiveModule] = useState<AdminModule>("inventory");
 
   const metrics = useMemo(() => {
     const vendibleLots = lots.filter((item) => item.type === "lote");
@@ -24,15 +28,49 @@ export function AdminDashboardPage() {
         <h1 className="font-display mt-2 text-[2.2rem] leading-tight text-[#092930] sm:mt-3 sm:text-[2.8rem]">{PROJECT_NAME}</h1>
       </section>
 
-      <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
-        <DashboardCard label="Total de lotes" value={String(metrics.total)} tone="neutral" />
-        <DashboardCard label="Disponibles" value={String(metrics.available)} tone="available" />
-        <DashboardCard label="Reservados" value={String(metrics.reserved)} tone="reserved" />
-        <DashboardCard label="Vendidos" value={String(metrics.sold)} tone="sold" />
+      <section className="grid grid-cols-2 gap-2 rounded-full border border-stone-200 bg-white/88 p-1.5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:max-w-md">
+        <ModuleTab
+          active={activeModule === "inventory"}
+          label="Inventario"
+          onClick={() => setActiveModule("inventory")}
+        />
+        <ModuleTab
+          active={activeModule === "finance"}
+          label="Financiero"
+          onClick={() => setActiveModule("finance")}
+        />
       </section>
 
-      <AdminInventorySection />
+      {activeModule === "inventory" ? (
+        <>
+          <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
+            <DashboardCard label="Total de lotes" value={String(metrics.total)} tone="neutral" />
+            <DashboardCard label="Disponibles" value={String(metrics.available)} tone="available" />
+            <DashboardCard label="Reservados" value={String(metrics.reserved)} tone="reserved" />
+            <DashboardCard label="Vendidos" value={String(metrics.sold)} tone="sold" />
+          </section>
+
+          <AdminInventorySection />
+        </>
+      ) : (
+        <AdminFinanceSection />
+      )}
     </div>
+  );
+}
+
+function ModuleTab({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "rounded-full px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.24em] transition sm:text-sm",
+        active ? "bg-[#092930] text-white" : "text-slate-600 hover:bg-[#f7f1e8] hover:text-[#092930]"
+      ].join(" ")}
+    >
+      {label}
+    </button>
   );
 }
 

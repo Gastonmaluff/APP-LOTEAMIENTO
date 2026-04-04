@@ -3,7 +3,7 @@ import { PUBLIC_PROJECT_ROUTE } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
 
 export function AdminShell() {
-  const { signOutUser, user } = useAuth();
+  const { signOutUser } = useAuth();
   const logoImageSrc = `${import.meta.env.BASE_URL}images/viva-lago-logo.png`;
 
   return (
@@ -41,9 +41,6 @@ export function AdminShell() {
                 Ver sitio
               </a>
 
-              <div className="rounded-full border border-stone-200 bg-[#f7f1e8] px-4 py-2 text-xs text-slate-700">
-                {user?.email ?? "Sin usuario"}
-              </div>
               <button
                 type="button"
                 onClick={() => {
@@ -53,10 +50,6 @@ export function AdminShell() {
               >
                 Cerrar sesion
               </button>
-            </div>
-
-            <div className="truncate rounded-full border border-stone-200 bg-[#f7f1e8] px-3 py-1.5 text-[11px] text-slate-700 sm:hidden">
-              {user?.email ?? "Sin usuario"}
             </div>
           </div>
         </header>
