@@ -47,6 +47,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   const areaLabel = computedArea ? formatAreaNumber(computedArea) : form.areaDisplay || "Sin calcular";
   const lotLabel = buildLotLabel(form.manzana, form.lotNumber);
   const lotMeasures = formatLotMeasures(form.width, form.length, areaLabel);
+  const planLabel = formatPlanSummary(form.deliveryPercent, form.installments, form.financingText, form.currency);
   const commercialPrice = getCommercialPriceSummary({
     currency: form.currency || null,
     deliveryPercent: parseNumberLike(form.deliveryPercent),
@@ -75,8 +76,41 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   }
 
   return (
-    <article className="overflow-hidden rounded-[22px] border border-stone-200 bg-[#fcfbf8] shadow-[0_10px_28px_rgba(15,23,42,0.04)]">
-      <div className="grid gap-3 px-3 py-3 sm:px-4 xl:grid-cols-[minmax(180px,1.25fr)_minmax(160px,0.95fr)_minmax(140px,0.8fr)_88px_minmax(120px,0.78fr)_auto] xl:items-center xl:py-2.5">
+    <article className="overflow-hidden rounded-[18px] border border-stone-200 bg-[#fcfbf8] shadow-[0_10px_28px_rgba(15,23,42,0.04)]">
+      <div className="px-3 py-2.5 xl:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-[0.95rem] font-semibold text-[#092930]">{lotLabel}</p>
+            <p className="mt-1 text-xs text-slate-600">{lotMeasures}</p>
+          </div>
+
+          <span
+            className={[
+              "max-w-[108px] shrink-0 truncate rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-4",
+              statusBadgeClass
+            ].join(" ")}
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="mt-2 flex items-end justify-between gap-3 border-t border-stone-200/70 pt-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-900">{commercialPrice.value}</p>
+            <p className="mt-0.5 truncate text-[11px] text-slate-600">{planLabel}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsEditing((current) => !current)}
+            className="shrink-0 rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+          >
+            {isEditing ? "Cerrar" : "Editar"}
+          </button>
+        </div>
+      </div>
+
+      <div className="hidden gap-3 px-4 py-2.5 xl:grid xl:grid-cols-[minmax(180px,1.1fr)_minmax(170px,0.95fr)_minmax(130px,0.8fr)_minmax(180px,1fr)_minmax(120px,0.7fr)_auto] xl:items-center">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-[#092930]">{lotLabel}</p>
         </div>
@@ -85,10 +119,9 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
 
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">{commercialPrice.value}</p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-500">{commercialPrice.label}</p>
         </div>
 
-        <p className="text-sm font-medium text-slate-700">{form.currency || "-"}</p>
+        <p className="truncate text-sm text-slate-700">{planLabel}</p>
 
         <div className="flex min-w-0 justify-start xl:justify-end">
           <span
@@ -314,6 +347,27 @@ function formatLotMeasures(width: string, length: string, areaLabel: string) {
   }
 
   return areaLabel;
+}
+
+function formatPlanSummary(
+  deliveryPercent: string,
+  installments: string,
+  financingText: string,
+  currency: string
+) {
+  const deliveryValue = deliveryPercent.trim();
+  const installmentsValue = installments.trim();
+  const financingValue = financingText.trim();
+
+  if (deliveryValue && installmentsValue) {
+    return `Entrega ${deliveryValue}% + ${installmentsValue} cuotas`;
+  }
+
+  if (financingValue) {
+    return financingValue;
+  }
+
+  return currency === "USD" ? "Pago contado" : "Consultar plan";
 }
 
 function buildLotLabel(manzana: string, lotNumber: string) {
