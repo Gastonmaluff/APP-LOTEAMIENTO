@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 import { PUBLIC_PROJECT_ROUTE } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -15,12 +15,12 @@ export function AdminShell() {
               <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-10 w-auto object-contain sm:h-14" />
 
               <div className="flex items-center gap-2 sm:hidden">
-                <a
-                  href={PUBLIC_PROJECT_ROUTE}
+                <Link
+                  to={PUBLIC_PROJECT_ROUTE}
                   className="rounded-full border border-stone-300 px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-[#8fa88b] hover:text-[#092930]"
                 >
                   Ver sitio
-                </a>
+                </Link>
                 <button
                   type="button"
                   onClick={() => {
@@ -34,12 +34,12 @@ export function AdminShell() {
             </div>
 
             <div className="hidden flex-wrap items-center gap-3 sm:flex">
-              <a
-                href={PUBLIC_PROJECT_ROUTE}
+              <Link
+                to={PUBLIC_PROJECT_ROUTE}
                 className="rounded-full border border-stone-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-[#8fa88b] hover:text-[#092930]"
               >
                 Ver sitio
-              </a>
+              </Link>
 
               <button
                 type="button"
