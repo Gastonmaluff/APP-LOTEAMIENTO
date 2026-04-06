@@ -6,7 +6,7 @@ import { formatPrice } from "../../utils/mapUtils";
 import { useLots } from "../../contexts/LotsContext";
 import { AdminNewSaleModal } from "./AdminNewSaleModal";
 import { AdminRegisterPaymentModal } from "./AdminRegisterPaymentModal";
-import { AdminPaymentsCalendar } from "./AdminPaymentsCalendar";
+import { AdminPaymentsCalendar, type CalendarPaymentEntry } from "./AdminPaymentsCalendar";
 
 export function AdminFinanceSection() {
   const { lots } = useLots();
@@ -90,16 +90,7 @@ export function AdminFinanceSection() {
     };
   }, [sales]);
 
-  const financeData = useMemo(() => buildFinanceData(sales), [sales]);
-  const nextDueInstallment = useMemo(
-    () => resolveNextDueInstallment(selectedInstallments),
-    [selectedInstallments]
-  );
-  const sortedInstallments = useMemo(
-    () => sortInstallmentsForDisplay(selectedInstallments),
-    [selectedInstallments]
-  );
-  const calendarEntries = useMemo(
+  const calendarEntries = useMemo<CalendarPaymentEntry[]>(
     () =>
       sales.flatMap((sale) =>
         (installmentsBySaleId[sale.id] ?? [])
@@ -117,6 +108,18 @@ export function AdminFinanceSection() {
           .filter((entry) => entry.status !== "paid")
       ),
     [installmentsBySaleId, sales]
+  );
+  const financeData = useMemo(
+    () => buildFinanceData(sales, installmentsBySaleId),
+    [installmentsBySaleId, sales]
+  );
+  const nextDueInstallment = useMemo(
+    () => resolveNextDueInstallment(selectedInstallments),
+    [selectedInstallments]
+  );
+  const sortedInstallments = useMemo(
+    () => sortInstallmentsForDisplay(selectedInstallments),
+    [selectedInstallments]
   );
   const calendarLoading = loading || (sales.length > 0 && sales.some((sale) => installmentsBySaleId[sale.id] === undefined));
 
@@ -373,23 +376,50 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function buildFinanceData(sales: SaleOperationRecord[]) {
+function buildFinanceData(
+  sales: SaleOperationRecord[],
+  installmentsBySaleId: Record<string, InstallmentRecord[]>
+) {
   const today = new Date().toISOString().slice(0, 10);
   const weekLimit = addDaysToIsoDate(today, 7);
+  const monthKey = today.slice(0, 7);
+  const allInstallments = sales.flatMap((sale) => installmentsBySaleId[sale.id] ?? []);
+  const nonPaidInstallments = allInstallments.filter((installment) => getEffectiveInstallmentStatus(installment) !== "paid");
+  const dueTodayCount = nonPaidInstallments.filter((installment) => installment.dueDate === today).length;
+  const dueThisWeekCount = nonPaidInstallments.filter(
+    (installment) => installment.dueDate >= today && installment.dueDate <= weekLimit
+  ).length;
+  const overdueCount = nonPaidInstallments.filter(
+    (installment) => getEffectiveInstallmentStatus(installment) === "overdue"
+  ).length;
+  const collectedThisMonth = allInstallments
+    .filter((installment) => installment.paidAt?.slice(0, 7) === monthKey)
+    .reduce((accumulator, installment) => accumulator + installment.amount, 0);
+  const sortedOperations = [...sales].sort((left, right) => {
+    const leftPriority = getOperationPaymentPriority(left.paymentStatus);
+    const rightPriority = getOperationPaymentPriority(right.paymentStatus);
+
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
+    }
+
+    if ((left.nextDueDate ?? "") !== (right.nextDueDate ?? "")) {
+      return (left.nextDueDate ?? "9999-99-99").localeCompare(right.nextDueDate ?? "9999-99-99");
+    }
+
+    return left.lotLabel.localeCompare(right.lotLabel, "es");
+  });
 
   return {
     metrics: [
       { label: "Ventas activas", value: String(sales.length) },
-      { label: "Vencen hoy", value: String(sales.filter((sale) => sale.nextDueDate === today).length) },
-      {
-        label: "Vencen esta semana",
-        value: String(sales.filter((sale) => sale.nextDueDate && sale.nextDueDate >= today && sale.nextDueDate <= weekLimit).length)
-      },
-      { label: "En mora", value: String(sales.filter((sale) => sale.paymentStatus === "overdue").length) },
-      { label: "Cobros del mes", value: formatPrice(0, sales[0]?.currency ?? "PYG") },
+      { label: "Vencen hoy", value: String(dueTodayCount) },
+      { label: "Vencen esta semana", value: String(dueThisWeekCount) },
+      { label: "En mora", value: String(overdueCount) },
+      { label: "Cobros del mes", value: formatPrice(collectedThisMonth, sales[0]?.currency ?? "PYG") },
       { label: "Reservas pendientes", value: String(sales.filter((sale) => sale.operationType === "reserve").length) }
     ],
-    operations: sales
+    operations: sortedOperations
   };
 }
 
@@ -460,6 +490,22 @@ function getInstallmentTone(status: InstallmentStatus) {
   }
 
   return "border-[#dccfbf] bg-[#f6f1ea] text-[#7e6f5d]";
+}
+
+function getOperationPaymentPriority(status: SaleOperationRecord["paymentStatus"]) {
+  if (status === "overdue") {
+    return 0;
+  }
+
+  if (status === "pending") {
+    return 1;
+  }
+
+  if (status === "paid") {
+    return 2;
+  }
+
+  return 3;
 }
 
 function addDaysToIsoDate(baseDate: string, days: number) {

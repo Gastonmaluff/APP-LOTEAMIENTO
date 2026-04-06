@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatPrice } from "../../utils/mapUtils";
 import type { InstallmentStatus, SaleOperationRecord } from "../../types/finance";
 
-type CalendarPaymentEntry = {
+export type CalendarPaymentEntry = {
   id: string;
   saleId: string;
   clientName: string;
@@ -22,6 +22,7 @@ type AdminPaymentsCalendarProps = {
 export function AdminPaymentsCalendar({ entries, loading = false }: AdminPaymentsCalendarProps) {
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const monthLabel = useMemo(
     () =>
@@ -32,16 +33,18 @@ export function AdminPaymentsCalendar({ entries, loading = false }: AdminPayment
     [visibleMonth]
   );
 
-  const entriesByDate = useMemo(() => {
-    return entries.reduce<Record<string, CalendarPaymentEntry[]>>((accumulator, entry) => {
-      if (!accumulator[entry.dueDate]) {
-        accumulator[entry.dueDate] = [];
-      }
+  const entriesByDate = useMemo(
+    () =>
+      entries.reduce<Record<string, CalendarPaymentEntry[]>>((accumulator, entry) => {
+        if (!accumulator[entry.dueDate]) {
+          accumulator[entry.dueDate] = [];
+        }
 
-      accumulator[entry.dueDate].push(entry);
-      return accumulator;
-    }, {});
-  }, [entries]);
+        accumulator[entry.dueDate].push(entry);
+        return accumulator;
+      }, {}),
+    [entries]
+  );
 
   const visibleMonthEntries = useMemo(() => {
     const monthKey = getMonthKey(visibleMonth);
@@ -74,10 +77,15 @@ export function AdminPaymentsCalendar({ entries, loading = false }: AdminPayment
   }, [visibleMonthEntries]);
 
   const activeEntries = activeDateKey ? entriesByDate[activeDateKey] ?? [] : [];
+  const visibleMonthPendingCount = visibleMonthEntries.length;
+  const visibleMonthDaysWithEntries = useMemo(
+    () => new Set(visibleMonthEntries.map((entry) => entry.dueDate)).size,
+    [visibleMonthEntries]
+  );
 
   return (
     <section className="rounded-[28px] border border-stone-200 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:p-5">
-      <div className="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className={`flex flex-col gap-3 ${isExpanded ? "border-b border-stone-200 pb-4" : ""} sm:flex-row sm:items-end sm:justify-between`}>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">Calendario de pagos</p>
           <h3 className="font-display mt-2 text-[1.8rem] text-[#092930]">Vencimientos del mes</h3>
@@ -86,30 +94,53 @@ export function AdminPaymentsCalendar({ entries, loading = false }: AdminPayment
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-300 text-lg text-[#0f2f35] transition hover:border-[#8fa88b]"
-            aria-label="Mes anterior"
-          >
-            ‹
-          </button>
-          <div className="min-w-[10rem] rounded-full border border-stone-200 bg-[#f7f1e8] px-4 py-2 text-center text-sm font-semibold capitalize text-[#092930]">
-            {monthLabel}
+        <div className="flex flex-col items-start gap-3 self-start sm:items-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-full border border-stone-200 bg-[#f7f1e8] px-4 py-2 text-sm font-semibold capitalize text-[#092930]">
+              {monthLabel}
+            </div>
+            <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {visibleMonthPendingCount} pagos en {visibleMonthDaysWithEntries} dias
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsExpanded((currentValue) => !currentValue)}
+              className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#0f2f35] transition hover:border-[#8fa88b]"
+            >
+              {isExpanded ? "Ocultar calendario" : "Ver calendario"}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-300 text-lg text-[#0f2f35] transition hover:border-[#8fa88b]"
-            aria-label="Mes siguiente"
-          >
-            ›
-          </button>
+
+          {isExpanded ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-300 text-lg text-[#0f2f35] transition hover:border-[#8fa88b]"
+                aria-label="Mes anterior"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-300 text-lg text-[#0f2f35] transition hover:border-[#8fa88b]"
+                aria-label="Mes siguiente"
+              >
+                ›
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {loading ? (
+      {!isExpanded ? (
+        <div className="mt-4 rounded-[20px] border border-dashed border-stone-300 bg-[#fcfbf8] px-4 py-4 text-sm leading-7 text-slate-600">
+          {visibleMonthPendingCount > 0
+            ? `${capitalize(monthLabel)} concentra ${visibleMonthPendingCount} vencimientos pendientes o vencidos distribuidos en ${visibleMonthDaysWithEntries} dias.`
+            : "Este mes no tiene cuotas pendientes o vencidas para seguimiento."}
+        </div>
+      ) : loading ? (
         <div className="mt-5 space-y-4">
           <div className="grid grid-cols-7 gap-2">
             {Array.from({ length: 7 }).map((_, index) => (
@@ -186,10 +217,7 @@ export function AdminPaymentsCalendar({ entries, loading = false }: AdminPayment
                     {hasEntries ? (
                       <div className="mt-3 space-y-1">
                         {day.entries.slice(0, 2).map((entry) => (
-                          <div
-                            key={entry.id}
-                            className={`h-1.5 rounded-full ${getStatusFillTone(entry.status)}`}
-                          />
+                          <div key={entry.id} className={`h-1.5 rounded-full ${getStatusFillTone(entry.status)}`} />
                         ))}
                         {day.entries.length > 2 ? (
                           <p className="pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -212,10 +240,7 @@ export function AdminPaymentsCalendar({ entries, loading = false }: AdminPayment
             {activeEntries.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {activeEntries.map((entry) => (
-                  <article
-                    key={entry.id}
-                    className="rounded-[18px] border border-stone-200 bg-white px-4 py-3"
-                  >
+                  <article key={entry.id} className="rounded-[18px] border border-stone-200 bg-white px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-[#092930]">{entry.clientName}</p>
@@ -335,5 +360,13 @@ function getStatusFillTone(status: InstallmentStatus) {
   }
 
   return "bg-[#cbb89d]";
+}
+
+function capitalize(value: string) {
+  if (!value) {
+    return value;
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
