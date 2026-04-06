@@ -12,9 +12,16 @@ import {
   where,
   writeBatch
 } from "firebase/firestore";
-import { PROJECT_NAME, PUBLIC_PROJECT_ROUTE } from "../config/project";
+import { PROJECT_NAME, PROJECT_SLUG, PUBLIC_PROJECT_ROUTE } from "../config/project";
 import { db } from "../firebase/client";
-import type { NewSaleInput, OperationType, SaleOperationRecord } from "../types/finance";
+import type {
+  InstallmentRecord,
+  InstallmentStatus,
+  NewSaleInput,
+  OperationType,
+  RegisterPaymentInput,
+  SaleOperationRecord
+} from "../types/finance";
 import type { LotData } from "../types/lots";
 
 type FirestoreRecord = Record<string, unknown>;
@@ -36,6 +43,29 @@ export function subscribeToProjectSales(
     salesQuery,
     (snapshot) => {
       onData(snapshot.docs.map((docSnapshot) => normalizeSale(docSnapshot.id, docSnapshot.data())));
+    },
+    (error) => onError(error)
+  );
+}
+
+export function subscribeToSaleInstallments(
+  projectSlug: string,
+  saleId: string,
+  onData: (installments: InstallmentRecord[]) => void,
+  onError: (error: Error) => void
+) {
+  if (!db) {
+    onData([]);
+    return () => undefined;
+  }
+
+  const installmentsRef = collection(db, "projects", projectSlug, "sales", saleId, "installments");
+  const installmentsQuery = query(installmentsRef, orderBy("number", "asc"));
+
+  return onSnapshot(
+    installmentsQuery,
+    (snapshot) => {
+      onData(snapshot.docs.map((docSnapshot) => normalizeInstallment(docSnapshot.id, docSnapshot.data())));
     },
     (error) => onError(error)
   );
@@ -169,6 +199,78 @@ export async function createProjectSale(
   };
 }
 
+export async function registerSalePayment(
+  sale: SaleOperationRecord,
+  installments: InstallmentRecord[],
+  input: RegisterPaymentInput,
+  userEmail?: string | null
+) {
+  if (!db) {
+    throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
+  }
+
+  const projectRef = doc(db, "projects", PROJECT_SLUG);
+  const saleRef = doc(projectRef, "sales", sale.id);
+  const installmentRef = doc(saleRef, "installments", input.installmentId);
+  const activityRef = doc(collection(projectRef, "adminActivity"));
+  const batch = writeBatch(db);
+
+  batch.set(
+    installmentRef,
+    {
+      amount: input.amount,
+      status: "paid",
+      paidAt: input.paidAt,
+      paymentMethod: normalizeBlank(input.paymentMethod),
+      note: normalizeBlank(input.note),
+      updatedAt: serverTimestamp(),
+      updatedBy: userEmail ?? null
+    },
+    { merge: true }
+  );
+
+  const nextInstallments = installments.map((installment) =>
+    installment.id === input.installmentId
+      ? {
+          ...installment,
+          amount: input.amount,
+          status: "paid" as InstallmentStatus,
+          paidAt: input.paidAt,
+          paymentMethod: normalizeBlank(input.paymentMethod),
+          note: normalizeBlank(input.note)
+        }
+      : installment
+  );
+
+  const nextDue = resolveNextDueInstallment(nextInstallments);
+  const hasPendingInstallments = nextInstallments.some((installment) => getEffectiveInstallmentStatus(installment) !== "paid");
+
+  batch.set(
+    saleRef,
+    {
+      nextDueDate: nextDue?.dueDate ?? null,
+      nextPaymentAmount: nextDue?.amount ?? null,
+      paymentStatus: nextDue ? getEffectiveInstallmentStatus(nextDue) : "paid",
+      status: hasPendingInstallments ? "active" : "completed",
+      updatedAt: serverTimestamp(),
+      updatedBy: userEmail ?? null
+    },
+    { merge: true }
+  );
+
+  batch.set(activityRef, {
+    action: "register-payment",
+    projectSlug: PROJECT_SLUG,
+    saleId: sale.id,
+    installmentId: input.installmentId,
+    lotId: sale.lotId,
+    userEmail: userEmail ?? null,
+    createdAt: serverTimestamp()
+  });
+
+  await batch.commit();
+}
+
 function createInstallments(
   batch: ReturnType<typeof writeBatch>,
   saleRef: DocumentReference,
@@ -197,6 +299,7 @@ function createInstallments(
       amount,
       status: "pending",
       paidAt: null,
+      paymentMethod: null,
       note: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -229,6 +332,22 @@ function normalizeSale(id: string, rawData: FirestoreRecord): SaleOperationRecor
     notes: normalizeString(rawData.notes),
     contractUrl: normalizeString(rawData.contractUrl),
     createdAtMs: normalizeTimestamp(rawData.createdAt)
+  };
+}
+
+function normalizeInstallment(id: string, rawData: FirestoreRecord): InstallmentRecord {
+  return {
+    id,
+    saleId: normalizeString(rawData.saleId) ?? "",
+    lotId: normalizeString(rawData.lotId) ?? "",
+    clientId: normalizeString(rawData.clientId) ?? "",
+    number: normalizeNumber(rawData.number) ?? 0,
+    dueDate: normalizeString(rawData.dueDate) ?? "",
+    amount: normalizeNumber(rawData.amount) ?? 0,
+    status: normalizeInstallmentStatus(rawData.status),
+    paidAt: normalizeString(rawData.paidAt),
+    paymentMethod: normalizeString(rawData.paymentMethod),
+    note: normalizeString(rawData.note)
   };
 }
 
@@ -294,10 +413,39 @@ function normalizePaymentStatus(value: unknown): SaleOperationRecord["paymentSta
   return value === "pending" ? "pending" : null;
 }
 
+function normalizeInstallmentStatus(value: unknown): InstallmentStatus {
+  if (value === "paid" || value === "overdue") {
+    return value;
+  }
+
+  return "pending";
+}
+
 function normalizeTimestamp(value: unknown) {
   if (value instanceof Timestamp) {
     return value.toMillis();
   }
 
   return null;
+}
+
+export function getEffectiveInstallmentStatus(installment: InstallmentRecord): InstallmentStatus {
+  if (installment.status === "paid") {
+    return "paid";
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  return installment.dueDate && installment.dueDate < today ? "overdue" : installment.status;
+}
+
+export function resolveNextDueInstallment(installments: InstallmentRecord[]) {
+  return [...installments]
+    .filter((installment) => getEffectiveInstallmentStatus(installment) !== "paid")
+    .sort((left, right) => {
+      if (left.dueDate !== right.dueDate) {
+        return left.dueDate.localeCompare(right.dueDate);
+      }
+
+      return left.number - right.number;
+    })[0] ?? null;
 }

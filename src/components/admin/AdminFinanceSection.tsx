@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { AdminNewSaleModal } from "./AdminNewSaleModal";
-import { useLots } from "../../contexts/LotsContext";
 import { PROJECT_SLUG } from "../../config/project";
-import { subscribeToProjectSales } from "../../services/financeRepository";
-import type { SaleOperationRecord } from "../../types/finance";
+import { subscribeToProjectSales, subscribeToSaleInstallments, getEffectiveInstallmentStatus, resolveNextDueInstallment } from "../../services/financeRepository";
+import type { InstallmentRecord, InstallmentStatus, SaleOperationRecord } from "../../types/finance";
 import { formatPrice } from "../../utils/mapUtils";
+import { useLots } from "../../contexts/LotsContext";
+import { AdminNewSaleModal } from "./AdminNewSaleModal";
+import { AdminRegisterPaymentModal } from "./AdminRegisterPaymentModal";
 
 export function AdminFinanceSection() {
   const { lots } = useLots();
@@ -12,7 +13,9 @@ export function AdminFinanceSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingSale, setIsCreatingSale] = useState(false);
+  const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
+  const [selectedInstallments, setSelectedInstallments] = useState<InstallmentRecord[]>([]);
 
   useEffect(() => {
     return subscribeToProjectSales(
@@ -30,11 +33,37 @@ export function AdminFinanceSection() {
     );
   }, []);
 
-  const financeData = useMemo(() => buildFinanceData(sales), [sales]);
-
   const selectedOperation = useMemo(
-    () => financeData.operations.find((operation) => operation.id === selectedOperationId) ?? financeData.operations[0] ?? null,
-    [financeData.operations, selectedOperationId]
+    () => sales.find((operation) => operation.id === selectedOperationId) ?? sales[0] ?? null,
+    [sales, selectedOperationId]
+  );
+
+  useEffect(() => {
+    if (!selectedOperation) {
+      setSelectedInstallments([]);
+      return;
+    }
+
+    return subscribeToSaleInstallments(
+      PROJECT_SLUG,
+      selectedOperation.id,
+      (nextInstallments) => {
+        setSelectedInstallments(nextInstallments);
+      },
+      (nextError) => {
+        console.error("[AdminFinanceSection] Error leyendo cuotas:", nextError);
+      }
+    );
+  }, [selectedOperation]);
+
+  const financeData = useMemo(() => buildFinanceData(sales), [sales]);
+  const nextDueInstallment = useMemo(
+    () => resolveNextDueInstallment(selectedInstallments),
+    [selectedInstallments]
+  );
+  const sortedInstallments = useMemo(
+    () => sortInstallmentsForDisplay(selectedInstallments),
+    [selectedInstallments]
   );
 
   return (
@@ -65,7 +94,7 @@ export function AdminFinanceSection() {
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.9fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(380px,0.95fr)]">
         <section className="rounded-[28px] border border-stone-200 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:p-5">
           <div className="flex items-end justify-between gap-4 border-b border-stone-200 pb-4">
             <div>
@@ -87,21 +116,21 @@ export function AdminFinanceSection() {
             <p className="py-8 text-sm leading-7 text-rose-700">{error}</p>
           ) : financeData.operations.length === 0 ? (
             <p className="py-8 text-sm leading-7 text-slate-600">
-              Todavia no hay operaciones cargadas. Usa “Nueva venta” para registrar la primera.
+              Todavia no hay operaciones cargadas. Usa "Nueva venta" para registrar la primera.
             </p>
           ) : (
             <div className="mt-4 space-y-3">
               {financeData.operations.map((operation) => (
                 <article
-                    key={operation.id}
-                    className="rounded-[20px] border border-stone-200 bg-[#fcfbf8] px-3 py-3 sm:px-4"
-                  >
+                  key={operation.id}
+                  className="rounded-[20px] border border-stone-200 bg-[#fcfbf8] px-3 py-3 sm:px-4"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[#092930] sm:text-base">{operation.clientName}</p>
                       <p className="mt-1 text-xs text-slate-600 sm:text-sm">{operation.lotLabel}</p>
                     </div>
-                    <span className="shrink-0 rounded-full border border-[#dccfbf] bg-[#f6f1ea] px-3 py-1 text-[11px] font-semibold text-[#7e6f5d]">
+                    <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${getOperationTone(operation)}`}>
                       {getOperationLabel(operation)}
                     </span>
                   </div>
@@ -122,8 +151,11 @@ export function AdminFinanceSection() {
                     </button>
                     <button
                       type="button"
-                      className="cursor-not-allowed rounded-full border border-stone-200 px-4 py-2 text-xs font-semibold text-slate-400"
-                      title="Se activa cuando conectemos cobranza y plan de cuotas."
+                      onClick={() => {
+                        setSelectedOperationId(operation.id);
+                        setIsRegisteringPayment(true);
+                      }}
+                      className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
                     >
                       Registrar cobro
                     </button>
@@ -153,8 +185,39 @@ export function AdminFinanceSection() {
                 <InfoPill label="Estado pago" value={getPaymentLabel(selectedOperation.paymentStatus)} />
               </div>
 
+              <div className="rounded-[24px] border border-stone-200 bg-[linear-gradient(180deg,#f7f2e9_0%,#f1ece3_100%)] p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Proximo vencimiento</p>
+                {nextDueInstallment ? (
+                  <div className="mt-4 space-y-3">
+                    <h4 className="font-display text-[2rem] leading-none text-[#092930]">
+                      Cuota {nextDueInstallment.number}
+                    </h4>
+                    <p className="text-lg font-semibold text-[#715b3b]">
+                      {formatPrice(nextDueInstallment.amount, selectedOperation.currency)}
+                    </p>
+                    <div className="space-y-1 text-sm text-slate-700">
+                      <p>Fecha: {nextDueInstallment.dueDate}</p>
+                      <p>Cliente: {selectedOperation.clientName}</p>
+                      <p>Lote: {selectedOperation.lotLabel}</p>
+                      <p>Estado: {getInstallmentStatusLabel(getEffectiveInstallmentStatus(nextDueInstallment))}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm leading-7 text-slate-700">Sin vencimientos pendientes</p>
+                )}
+              </div>
+
               <div className="rounded-[22px] bg-[#f7f1e8] p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Plan de pagos</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Plan de pagos</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsRegisteringPayment(true)}
+                    className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
+                  >
+                    Registrar cobro
+                  </button>
+                </div>
                 <p className="mt-3 text-sm leading-7 text-slate-700">
                   {selectedOperation.deliveryPercent !== null && selectedOperation.deliveryPercent !== undefined
                     ? `Entrega ${selectedOperation.deliveryPercent}%`
@@ -168,12 +231,42 @@ export function AdminFinanceSection() {
               </div>
 
               <div className="rounded-[22px] border border-stone-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Agenda y seguimiento</p>
-                <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-700">
-                  <li>Proximos vencimientos: {selectedOperation.nextDueDate ?? "Sin fecha de agenda"}</li>
-                  <li>Pagos atrasados: {selectedOperation.paymentStatus === "overdue" ? "Si" : "No"}</li>
-                  <li>Observaciones: {selectedOperation.notes ?? "Sin observaciones"}</li>
-                </ul>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Historial de pagos</p>
+                {sortedInstallments.length === 0 ? (
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    Todavia no hay cuotas generadas para esta operacion.
+                  </p>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {sortedInstallments.map((installment) => {
+                      const effectiveStatus = getEffectiveInstallmentStatus(installment);
+                      return (
+                        <article
+                          key={installment.id}
+                          className="rounded-[18px] border border-stone-200 bg-[#fcfbf8] px-4 py-3"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-[#092930]">
+                                Cuota {installment.number} - {formatPrice(installment.amount, selectedOperation.currency)}
+                              </p>
+                              <div className="mt-2 space-y-1 text-xs leading-6 text-slate-600 sm:text-sm">
+                                <p>Vencimiento: {installment.dueDate}</p>
+                                <p>Pago real: {installment.paidAt ?? "Pendiente"}</p>
+                                <p>Medio: {installment.paymentMethod ?? "Sin registrar"}</p>
+                                <p>Observacion: {installment.note ?? "Sin observacion"}</p>
+                              </div>
+                            </div>
+
+                            <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${getInstallmentTone(effectiveStatus)}`}>
+                              {getInstallmentStatusLabel(effectiveStatus)}
+                            </span>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="rounded-[22px] border border-stone-200 p-4">
@@ -188,7 +281,7 @@ export function AdminFinanceSection() {
             </div>
           ) : (
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              Selecciona una operacion para ver cliente, lote, plan de pagos y seguimiento.
+              Selecciona una operacion para ver cliente, lote, vencimientos y pagos.
             </p>
           )}
         </section>
@@ -201,6 +294,14 @@ export function AdminFinanceSection() {
           onCreated={() => {
             setSelectedOperationId(null);
           }}
+        />
+      ) : null}
+
+      {isRegisteringPayment && selectedOperation ? (
+        <AdminRegisterPaymentModal
+          sale={selectedOperation}
+          installments={selectedInstallments}
+          onClose={() => setIsRegisteringPayment(false)}
         />
       ) : null}
     </section>
@@ -229,17 +330,30 @@ function buildFinanceData(sales: SaleOperationRecord[]) {
         value: String(sales.filter((sale) => sale.nextDueDate && sale.nextDueDate >= today && sale.nextDueDate <= weekLimit).length)
       },
       { label: "En mora", value: String(sales.filter((sale) => sale.paymentStatus === "overdue").length) },
-      {
-        label: "Cobros del mes",
-        value: formatPrice(0, sales[0]?.currency ?? "PYG")
-      },
-      {
-        label: "Reservas pendientes",
-        value: String(sales.filter((sale) => sale.operationType === "reserve").length)
-      }
+      { label: "Cobros del mes", value: formatPrice(0, sales[0]?.currency ?? "PYG") },
+      { label: "Reservas pendientes", value: String(sales.filter((sale) => sale.operationType === "reserve").length) }
     ],
     operations: sales
   };
+}
+
+function sortInstallmentsForDisplay(installments: InstallmentRecord[]) {
+  return [...installments].sort((left, right) => {
+    const leftStatus = getEffectiveInstallmentStatus(left);
+    const rightStatus = getEffectiveInstallmentStatus(right);
+    const leftPriority = leftStatus === "paid" ? 1 : 0;
+    const rightPriority = rightStatus === "paid" ? 1 : 0;
+
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
+    }
+
+    if (left.dueDate !== right.dueDate) {
+      return left.dueDate.localeCompare(right.dueDate);
+    }
+
+    return left.number - right.number;
+  });
 }
 
 function getOperationLabel(operation: SaleOperationRecord) {
@@ -260,6 +374,36 @@ function getPaymentLabel(status: SaleOperationRecord["paymentStatus"]) {
   }
 
   return "Sin calendario";
+}
+
+function getInstallmentStatusLabel(status: InstallmentStatus) {
+  if (status === "paid") {
+    return "Pagada";
+  }
+
+  if (status === "overdue") {
+    return "Vencida";
+  }
+
+  return "Pendiente";
+}
+
+function getOperationTone(operation: SaleOperationRecord) {
+  return operation.operationType === "reserve"
+    ? "border-[#dccfbf] bg-[#f6f1ea] text-[#7e6f5d]"
+    : "border-[#cedcc8] bg-[#eff5ec] text-[#567052]";
+}
+
+function getInstallmentTone(status: InstallmentStatus) {
+  if (status === "paid") {
+    return "border-[#cedcc8] bg-[#eff5ec] text-[#567052]";
+  }
+
+  if (status === "overdue") {
+    return "border-[#d6c2b6] bg-[#f3e6df] text-[#8a5b48]";
+  }
+
+  return "border-[#dccfbf] bg-[#f6f1ea] text-[#7e6f5d]";
 }
 
 function addDaysToIsoDate(baseDate: string, days: number) {

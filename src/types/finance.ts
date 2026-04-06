@@ -48,7 +48,17 @@ export type InstallmentRecord = {
   amount: number;
   status: InstallmentStatus;
   paidAt: string | null;
+  paymentMethod: string | null;
   note: string | null;
+};
+
+export type RegisterPaymentInput = {
+  installmentId: string;
+  paidAt: string;
+  amount: number;
+  paymentMethod: string;
+  note: string;
+  markAsFullPayment: boolean;
 };
 
 export type NewSaleInput = {
