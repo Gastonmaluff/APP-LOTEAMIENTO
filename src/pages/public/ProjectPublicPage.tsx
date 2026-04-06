@@ -113,7 +113,7 @@ export function ProjectPublicPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8f4ec] text-slate-900">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/80 bg-white/94 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-[1.2rem] sm:px-8 lg:px-10 lg:py-[1.35rem]">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10 lg:py-5">
           <a href="#inicio" className="flex items-center">
             <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-[52px] w-auto object-contain lg:h-[64px]" />
           </a>
@@ -134,9 +134,11 @@ export function ProjectPublicPage() {
             href={generalWhatsAppHref}
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg bg-[#092930] px-4.5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white transition hover:opacity-90"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#1f3d2b] px-5 py-3 text-[11px] font-semibold text-white transition hover:brightness-110 sm:px-6"
           >
-            Consultar
+            <WhatsAppMark className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Consultar por WhatsApp</span>
+            <span className="sm:hidden">WhatsApp</span>
           </a>
         </div>
       </header>
@@ -183,10 +185,6 @@ export function ProjectPublicPage() {
                   </a>
                 </div>
               </div>
-            </div>
-
-            <div className="absolute bottom-8 right-4 z-10 hidden rounded-[20px] border border-white/20 bg-[#2a2a2a]/70 p-3 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur sm:right-6 sm:block lg:right-10">
-              <img src={logoImageSrc} alt="Logo de Viva Lago Country." className="h-20 w-auto rounded-[14px] object-contain" />
             </div>
           </div>
         </section>
@@ -521,4 +519,22 @@ function getStatusPriority(status?: LotData["status"] | null) {
   }
 
   return 3;
+}
+
+function WhatsAppMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <path
+        d="M20 12.05A8 8 0 0 1 8.34 19.16L4 20l.87-4.18A8 8 0 1 1 20 12.05Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.85 9.36c.16-.35.33-.36.56-.37h.47c.14 0 .37.05.56.46.18.41.62 1.43.67 1.54.05.1.08.23.02.36-.05.13-.08.21-.16.32-.08.11-.17.24-.24.31-.08.08-.17.18-.07.36.1.18.46.75.98 1.22.68.6 1.25.79 1.43.88.18.08.28.07.39-.04.11-.11.45-.52.56-.69.12-.18.24-.15.4-.09.16.06 1.04.49 1.21.58.17.08.28.12.32.19.04.07.04.41-.1.8-.13.39-.76.75-1.05.8-.29.05-.66.08-1.06-.05-.24-.08-.55-.18-.95-.35a5.96 5.96 0 0 1-2.07-1.28 6.98 6.98 0 0 1-1.44-1.9c-.15-.26-.4-.74-.4-1.41 0-.67.35-1 .48-1.14Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 }
