@@ -1,23 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { PROJECT_SLUG } from "../../config/project";
-import { subscribeToProjectSales, subscribeToSaleInstallments, getEffectiveInstallmentStatus, resolveNextDueInstallment } from "../../services/financeRepository";
-import type { InstallmentRecord, InstallmentStatus, SaleOperationRecord } from "../../types/finance";
+import { subscribeToProjectClients, subscribeToProjectSales, subscribeToSaleInstallments, getEffectiveInstallmentStatus, resolveNextDueInstallment } from "../../services/financeRepository";
+import type { ClientRecord, InstallmentRecord, InstallmentStatus, SaleOperationRecord } from "../../types/finance";
 import { formatPrice } from "../../utils/mapUtils";
 import { useLots } from "../../contexts/LotsContext";
 import { AdminNewSaleModal } from "./AdminNewSaleModal";
 import { AdminRegisterPaymentModal } from "./AdminRegisterPaymentModal";
 import { AdminPaymentsCalendar, type CalendarPaymentEntry } from "./AdminPaymentsCalendar";
+import { AdminClientProfileModal } from "./AdminClientProfileModal";
 
 export function AdminFinanceSection() {
   const { lots } = useLots();
   const [sales, setSales] = useState<SaleOperationRecord[]>([]);
+  const [clients, setClients] = useState<ClientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingSale, setIsCreatingSale] = useState(false);
   const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedInstallments, setSelectedInstallments] = useState<InstallmentRecord[]>([]);
   const [installmentsBySaleId, setInstallmentsBySaleId] = useState<Record<string, InstallmentRecord[]>>({});
+  const [clientSearch, setClientSearch] = useState("");
 
   useEffect(() => {
     return subscribeToProjectSales(
@@ -31,6 +35,18 @@ export function AdminFinanceSection() {
         console.error("[AdminFinanceSection] Error leyendo ventas:", nextError);
         setError("No se pudieron leer las operaciones financieras.");
         setLoading(false);
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    return subscribeToProjectClients(
+      PROJECT_SLUG,
+      (nextClients) => {
+        setClients(nextClients);
+      },
+      (nextError) => {
+        console.error("[AdminFinanceSection] Error leyendo clientes:", nextError);
       }
     );
   }, []);
@@ -122,17 +138,87 @@ export function AdminFinanceSection() {
     [selectedInstallments]
   );
   const calendarLoading = loading || (sales.length > 0 && sales.some((sale) => installmentsBySaleId[sale.id] === undefined));
+  const filteredClients = useMemo(() => {
+    const normalizedQuery = clientSearch.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return clients
+      .filter((client) => {
+        const fullName = client.fullName.toLowerCase();
+        const nationalId = client.nationalId?.toLowerCase() ?? "";
+        return fullName.includes(normalizedQuery) || nationalId.includes(normalizedQuery);
+      })
+      .slice(0, 6);
+  }, [clientSearch, clients]);
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId) ?? null,
+    [clients, selectedClientId]
+  );
+
+  function openClientProfile(clientId: string) {
+    setSelectedClientId(clientId);
+    setClientSearch("");
+  }
+
+  function openOperation(saleId: string) {
+    setSelectedOperationId(saleId);
+    setSelectedClientId(null);
+  }
+
+  function openRegisterPayment(saleId: string) {
+    setSelectedOperationId(saleId);
+    setSelectedClientId(null);
+    setIsRegisteringPayment(true);
+  }
 
   return (
     <section className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Financiero</p>
-        <h2 className="font-display mt-3 text-[2.15rem] leading-tight text-[#092930]">
-          Operaciones, cuotas y seguimiento comercial
-        </h2>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-          Base operativa para registrar ventas, clientes, pagos, vencimientos y observaciones por lote.
-        </p>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#715b3b]">Financiero</p>
+          <h2 className="font-display mt-3 text-[2.15rem] leading-tight text-[#092930]">
+            Operaciones, cuotas y seguimiento comercial
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+            Base operativa para registrar ventas, clientes, pagos, vencimientos y observaciones por lote.
+          </p>
+        </div>
+
+        <div className="relative w-full max-w-md">
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Buscar cliente
+            </span>
+            <input
+              value={clientSearch}
+              onChange={(event) => setClientSearch(event.target.value)}
+              placeholder="Nombre o cedula"
+              className="field-light w-full"
+            />
+          </label>
+
+          {filteredClients.length > 0 ? (
+            <div className="absolute z-20 mt-2 w-full rounded-[20px] border border-stone-200 bg-white p-2 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+              {filteredClients.map((client) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => openClientProfile(client.id)}
+                  className="flex w-full items-start justify-between rounded-[16px] px-3 py-2 text-left transition hover:bg-[#f7f1e8]"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-[#092930]">{client.fullName}</span>
+                    <span className="block text-xs text-slate-600">{client.nationalId ?? "Cedula sin registrar"}</span>
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#715b3b]">Ver</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-6">
@@ -201,17 +287,21 @@ export function AdminFinanceSection() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => setSelectedOperationId(operation.id)}
+                      onClick={() => openOperation(operation.id)}
                       className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
                     >
                       Ver ficha
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedOperationId(operation.id);
-                        setIsRegisteringPayment(true);
-                      }}
+                      onClick={() => openClientProfile(operation.clientId)}
+                      className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
+                    >
+                      Ver cliente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openRegisterPayment(operation.id)}
                       className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
                     >
                       Registrar cobro
@@ -232,7 +322,16 @@ export function AdminFinanceSection() {
                 <h3 className="font-display text-[2rem] leading-tight text-[#092930]">
                   {selectedOperation.lotLabel}
                 </h3>
-                <p className="mt-2 text-sm text-slate-600">{selectedOperation.clientName}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                  <span>{selectedOperation.clientName}</span>
+                  <button
+                    type="button"
+                    onClick={() => openClientProfile(selectedOperation.clientId)}
+                    className="rounded-full border border-stone-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0f2f35] transition hover:border-[#8fa88b]"
+                  >
+                    Ver cliente
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -361,6 +460,17 @@ export function AdminFinanceSection() {
           sale={selectedOperation}
           installments={selectedInstallments}
           onClose={() => setIsRegisteringPayment(false)}
+        />
+      ) : null}
+
+      {selectedClient ? (
+        <AdminClientProfileModal
+          client={selectedClient}
+          sales={sales}
+          installmentsBySaleId={installmentsBySaleId}
+          onClose={() => setSelectedClientId(null)}
+          onOpenOperation={openOperation}
+          onRegisterPayment={openRegisterPayment}
         />
       ) : null}
     </section>

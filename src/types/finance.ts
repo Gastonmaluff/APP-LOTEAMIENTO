@@ -9,7 +9,23 @@ export type ClientRecord = {
   email: string | null;
   notes: string | null;
   documentFrontUrl: string | null;
+  documentFrontPath?: string | null;
   documentBackUrl: string | null;
+  documentBackPath?: string | null;
+};
+
+export type ClientDocumentKind = "client-front" | "client-back" | "contract";
+
+export type ClientDocumentRecord = {
+  id: string;
+  clientId: string;
+  kind: ClientDocumentKind;
+  name: string | null;
+  url: string;
+  storagePath: string | null;
+  saleId: string | null;
+  saleLabel: string | null;
+  createdAtMs: number | null;
 };
 
 export type SaleOperationRecord = {

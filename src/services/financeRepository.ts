@@ -15,6 +15,9 @@ import {
 import { PROJECT_NAME, PROJECT_SLUG, PUBLIC_PROJECT_ROUTE } from "../config/project";
 import { db } from "../firebase/client";
 import type {
+  ClientDocumentKind,
+  ClientDocumentRecord,
+  ClientRecord,
   InstallmentRecord,
   InstallmentStatus,
   NewSaleInput,
@@ -43,6 +46,51 @@ export function subscribeToProjectSales(
     salesQuery,
     (snapshot) => {
       onData(snapshot.docs.map((docSnapshot) => normalizeSale(docSnapshot.id, docSnapshot.data())));
+    },
+    (error) => onError(error)
+  );
+}
+
+export function subscribeToProjectClients(
+  projectSlug: string,
+  onData: (clients: ClientRecord[]) => void,
+  onError: (error: Error) => void
+) {
+  if (!db) {
+    onData([]);
+    return () => undefined;
+  }
+
+  const clientsRef = collection(db, "projects", projectSlug, "clients");
+  const clientsQuery = query(clientsRef, orderBy("fullName", "asc"));
+
+  return onSnapshot(
+    clientsQuery,
+    (snapshot) => {
+      onData(snapshot.docs.map((docSnapshot) => normalizeClient(docSnapshot.id, docSnapshot.data())));
+    },
+    (error) => onError(error)
+  );
+}
+
+export function subscribeToClientDocuments(
+  projectSlug: string,
+  clientId: string,
+  onData: (documents: ClientDocumentRecord[]) => void,
+  onError: (error: Error) => void
+) {
+  if (!db) {
+    onData([]);
+    return () => undefined;
+  }
+
+  const documentsRef = collection(db, "projects", projectSlug, "clients", clientId, "documents");
+  const documentsQuery = query(documentsRef, orderBy("createdAt", "desc"));
+
+  return onSnapshot(
+    documentsQuery,
+    (snapshot) => {
+      onData(snapshot.docs.map((docSnapshot) => normalizeClientDocument(docSnapshot.id, docSnapshot.data())));
     },
     (error) => onError(error)
   );
@@ -271,6 +319,162 @@ export async function registerSalePayment(
   await batch.commit();
 }
 
+export async function updateProjectClient(
+  projectSlug: string,
+  clientId: string,
+  input: {
+    fullName: string;
+    nationalId: string;
+    phone: string;
+    email: string;
+    notes: string;
+  },
+  userEmail?: string | null
+) {
+  if (!db) {
+    throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
+  }
+
+  const clientRef = doc(db, "projects", projectSlug, "clients", clientId);
+
+  await writeBatch(db)
+    .set(
+      clientRef,
+      {
+        fullName: input.fullName.trim(),
+        nationalId: normalizeBlank(input.nationalId),
+        phone: normalizeBlank(input.phone),
+        email: normalizeBlank(input.email),
+        notes: normalizeBlank(input.notes),
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    )
+    .commit();
+}
+
+export async function createClientDocumentRecord(
+  projectSlug: string,
+  clientId: string,
+  input: {
+    kind: ClientDocumentKind;
+    url: string;
+    storagePath?: string | null;
+    name?: string | null;
+    saleId?: string | null;
+    saleLabel?: string | null;
+  },
+  userEmail?: string | null
+) {
+  if (!db) {
+    throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
+  }
+
+  const projectRef = doc(db, "projects", projectSlug);
+  const clientRef = doc(projectRef, "clients", clientId);
+  const documentRef = doc(collection(clientRef, "documents"));
+  const batch = writeBatch(db);
+
+  batch.set(documentRef, {
+    clientId,
+    kind: input.kind,
+    url: input.url,
+    storagePath: input.storagePath ?? null,
+    name: input.name ?? null,
+    saleId: input.saleId ?? null,
+    saleLabel: input.saleLabel ?? null,
+    createdAt: serverTimestamp(),
+    createdBy: userEmail ?? null
+  });
+
+  if (input.kind === "client-front" || input.kind === "client-back") {
+    batch.set(
+      clientRef,
+      input.kind === "client-front"
+        ? {
+            documentFrontUrl: input.url,
+            documentFrontPath: input.storagePath ?? null,
+            updatedAt: serverTimestamp(),
+            updatedBy: userEmail ?? null
+          }
+        : {
+            documentBackUrl: input.url,
+            documentBackPath: input.storagePath ?? null,
+            updatedAt: serverTimestamp(),
+            updatedBy: userEmail ?? null
+          },
+      { merge: true }
+    );
+  }
+
+  await batch.commit();
+  return documentRef.id;
+}
+
+export async function deleteClientDocumentRecord(
+  projectSlug: string,
+  clientId: string,
+  input: {
+    documentId?: string | null;
+    kind: ClientDocumentKind;
+    saleId?: string | null;
+  },
+  userEmail?: string | null
+) {
+  if (!db) {
+    throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
+  }
+
+  const projectRef = doc(db, "projects", projectSlug);
+  const clientRef = doc(projectRef, "clients", clientId);
+  const batch = writeBatch(db);
+
+  if (input.documentId) {
+    batch.delete(doc(clientRef, "documents", input.documentId));
+  }
+
+  if (input.kind === "client-front") {
+    batch.set(
+      clientRef,
+      {
+        documentFrontUrl: null,
+        documentFrontPath: null,
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  }
+
+  if (input.kind === "client-back") {
+    batch.set(
+      clientRef,
+      {
+        documentBackUrl: null,
+        documentBackPath: null,
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  }
+
+  if (input.kind === "contract" && input.saleId) {
+    batch.set(
+      doc(projectRef, "sales", input.saleId),
+      {
+        contractUrl: null,
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  }
+
+  await batch.commit();
+}
+
 function createInstallments(
   batch: ReturnType<typeof writeBatch>,
   saleRef: DocumentReference,
@@ -335,6 +539,35 @@ function normalizeSale(id: string, rawData: FirestoreRecord): SaleOperationRecor
   };
 }
 
+function normalizeClient(id: string, rawData: FirestoreRecord): ClientRecord {
+  return {
+    id,
+    fullName: normalizeString(rawData.fullName) ?? "Cliente sin nombre",
+    nationalId: normalizeString(rawData.nationalId),
+    phone: normalizeString(rawData.phone),
+    email: normalizeString(rawData.email),
+    notes: normalizeString(rawData.notes),
+    documentFrontUrl: normalizeString(rawData.documentFrontUrl),
+    documentFrontPath: normalizeString(rawData.documentFrontPath),
+    documentBackUrl: normalizeString(rawData.documentBackUrl),
+    documentBackPath: normalizeString(rawData.documentBackPath)
+  };
+}
+
+function normalizeClientDocument(id: string, rawData: FirestoreRecord): ClientDocumentRecord {
+  return {
+    id,
+    clientId: normalizeString(rawData.clientId) ?? "",
+    kind: normalizeClientDocumentKind(rawData.kind),
+    name: normalizeString(rawData.name),
+    url: normalizeString(rawData.url) ?? "",
+    storagePath: normalizeString(rawData.storagePath),
+    saleId: normalizeString(rawData.saleId),
+    saleLabel: normalizeString(rawData.saleLabel),
+    createdAtMs: normalizeTimestamp(rawData.createdAt)
+  };
+}
+
 function normalizeInstallment(id: string, rawData: FirestoreRecord): InstallmentRecord {
   return {
     id,
@@ -387,6 +620,14 @@ function normalizeNumber(value: unknown) {
 
 function normalizeOperationType(value: unknown): OperationType {
   return value === "reserve" ? "reserve" : "sale";
+}
+
+function normalizeClientDocumentKind(value: unknown): ClientDocumentKind {
+  if (value === "client-front" || value === "client-back") {
+    return value;
+  }
+
+  return "contract";
 }
 
 function normalizeStatus(value: unknown): SaleOperationRecord["status"] {
