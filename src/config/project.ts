@@ -7,4 +7,4 @@ export const ADMIN_DASHBOARD_ROUTE = "/admin/dashboard";
 export const ADMIN_LOTES_ROUTE = "/admin/lotes";
 export const ADMIN_LOTE_DETAIL_ROUTE = "/admin/lotes/:id";
 
-export const EXPECTED_FIRESTORE_COLLECTIONS = ["lots", "visitRequests", "adminActivity"] as const;
+export const EXPECTED_FIRESTORE_COLLECTIONS = ["lots", "clients", "sales", "visitRequests", "adminActivity"] as const;

@@ -1,43 +1,36 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AdminNewSaleModal } from "./AdminNewSaleModal";
 import { useLots } from "../../contexts/LotsContext";
-import type { LotData } from "../../types/lots";
-import { formatPrice, getCommercialPriceSummary, getStatusLabel } from "../../utils/mapUtils";
-
-type FinanceOperation = {
-  id: string;
-  lot: LotData;
-  lotLabel: string;
-  clientLabel: string;
-  operationStatus: string;
-  nextDueDate: string;
-  nextPaymentLabel: string;
-  paymentStatus: string;
-};
+import { PROJECT_SLUG } from "../../config/project";
+import { subscribeToProjectSales } from "../../services/financeRepository";
+import type { SaleOperationRecord } from "../../types/finance";
+import { formatPrice } from "../../utils/mapUtils";
 
 export function AdminFinanceSection() {
   const { lots } = useLots();
+  const [sales, setSales] = useState<SaleOperationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isCreatingSale, setIsCreatingSale] = useState(false);
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
 
-  const financeData = useMemo(() => {
-    const operations = lots
-      .filter((item) => item.type === "lote" && (item.status === "reserved" || item.status === "sold"))
-      .map((item) => buildFinanceOperation(item));
+  useEffect(() => {
+    return subscribeToProjectSales(
+      PROJECT_SLUG,
+      (nextSales) => {
+        setSales(nextSales);
+        setLoading(false);
+        setError(null);
+      },
+      (nextError) => {
+        console.error("[AdminFinanceSection] Error leyendo ventas:", nextError);
+        setError("No se pudieron leer las operaciones financieras.");
+        setLoading(false);
+      }
+    );
+  }, []);
 
-    return {
-      metrics: [
-        { label: "Ventas activas", value: String(operations.length) },
-        { label: "Vencen hoy", value: "0" },
-        { label: "Vencen esta semana", value: "0" },
-        { label: "En mora", value: "0" },
-        { label: "Cobros del mes", value: formatPrice(0, "PYG") },
-        {
-          label: "Reservas pendientes",
-          value: String(lots.filter((item) => item.type === "lote" && item.status === "reserved").length)
-        }
-      ],
-      operations
-    };
-  }, [lots]);
+  const financeData = useMemo(() => buildFinanceData(sales), [sales]);
 
   const selectedOperation = useMemo(
     () => financeData.operations.find((operation) => operation.id === selectedOperationId) ?? financeData.operations[0] ?? null,
@@ -79,33 +72,44 @@ export function AdminFinanceSection() {
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">Operaciones</p>
               <h3 className="font-display mt-2 text-[1.8rem] text-[#092930]">Ventas y reservas activas</h3>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsCreatingSale(true)}
+              className="rounded-full bg-[#092930] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43]"
+            >
+              Nueva venta
+            </button>
           </div>
 
-          {financeData.operations.length === 0 ? (
+          {loading ? (
+            <p className="py-8 text-sm leading-7 text-slate-600">Cargando operaciones financieras...</p>
+          ) : error ? (
+            <p className="py-8 text-sm leading-7 text-rose-700">{error}</p>
+          ) : financeData.operations.length === 0 ? (
             <p className="py-8 text-sm leading-7 text-slate-600">
-              Todavia no hay operaciones reservadas o vendidas para listar.
+              Todavia no hay operaciones cargadas. Usa “Nueva venta” para registrar la primera.
             </p>
           ) : (
             <div className="mt-4 space-y-3">
               {financeData.operations.map((operation) => (
                 <article
-                  key={operation.id}
-                  className="rounded-[20px] border border-stone-200 bg-[#fcfbf8] px-3 py-3 sm:px-4"
-                >
+                    key={operation.id}
+                    className="rounded-[20px] border border-stone-200 bg-[#fcfbf8] px-3 py-3 sm:px-4"
+                  >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#092930] sm:text-base">{operation.clientLabel}</p>
+                      <p className="truncate text-sm font-semibold text-[#092930] sm:text-base">{operation.clientName}</p>
                       <p className="mt-1 text-xs text-slate-600 sm:text-sm">{operation.lotLabel}</p>
                     </div>
                     <span className="shrink-0 rounded-full border border-[#dccfbf] bg-[#f6f1ea] px-3 py-1 text-[11px] font-semibold text-[#7e6f5d]">
-                      {operation.operationStatus}
+                      {getOperationLabel(operation)}
                     </span>
                   </div>
 
                   <div className="mt-3 grid gap-2 border-t border-stone-200/70 pt-3 text-xs text-slate-600 sm:grid-cols-3 sm:text-sm">
-                    <p>Proximo vencimiento: {operation.nextDueDate}</p>
-                    <p>Monto cuota: {operation.nextPaymentLabel}</p>
-                    <p>Estado de pago: {operation.paymentStatus}</p>
+                    <p>Proximo vencimiento: {operation.nextDueDate ?? "Sin fecha"}</p>
+                    <p>Monto cuota: {formatPrice(operation.nextPaymentAmount, operation.currency)}</p>
+                    <p>Estado de pago: {getPaymentLabel(operation.paymentStatus)}</p>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -139,36 +143,47 @@ export function AdminFinanceSection() {
                 <h3 className="font-display text-[2rem] leading-tight text-[#092930]">
                   {selectedOperation.lotLabel}
                 </h3>
-                <p className="mt-2 text-sm text-slate-600">{selectedOperation.clientLabel}</p>
+                <p className="mt-2 text-sm text-slate-600">{selectedOperation.clientName}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <InfoPill label="Estado" value={selectedOperation.operationStatus} />
-                <InfoPill label="Monto" value={getCommercialPriceSummary(selectedOperation.lot).value} />
-                <InfoPill label="Proximo vencimiento" value={selectedOperation.nextDueDate} />
-                <InfoPill label="Estado pago" value={selectedOperation.paymentStatus} />
+                <InfoPill label="Estado" value={getOperationLabel(selectedOperation)} />
+                <InfoPill label="Monto" value={formatPrice(selectedOperation.price, selectedOperation.currency)} />
+                <InfoPill label="Proximo vencimiento" value={selectedOperation.nextDueDate ?? "Sin fecha"} />
+                <InfoPill label="Estado pago" value={getPaymentLabel(selectedOperation.paymentStatus)} />
               </div>
 
               <div className="rounded-[22px] bg-[#f7f1e8] p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Plan de pagos</p>
                 <p className="mt-3 text-sm leading-7 text-slate-700">
-                  {selectedOperation.lot.deliveryPercent !== null && selectedOperation.lot.deliveryPercent !== undefined
-                    ? `Entrega ${selectedOperation.lot.deliveryPercent}%`
+                  {selectedOperation.deliveryPercent !== null && selectedOperation.deliveryPercent !== undefined
+                    ? `Entrega ${selectedOperation.deliveryPercent}%`
                     : "Entrega pendiente de definir"}
-                  {selectedOperation.lot.installments ? ` + ${selectedOperation.lot.installments} cuotas` : ""}
+                  {selectedOperation.installments ? ` + ${selectedOperation.installments} cuotas` : ""}
                 </p>
                 <p className="mt-2 text-xs leading-6 text-slate-500">
-                  La tabla de cuotas, reprogramacion y cobros queda preparada para conectar Firestore en la siguiente fase.
+                  Fecha de inicio: {selectedOperation.startDate ?? "Sin fecha"} | Primer vencimiento:{" "}
+                  {selectedOperation.firstDueDate ?? "Sin fecha"}
                 </p>
               </div>
 
               <div className="rounded-[22px] border border-stone-200 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Agenda y seguimiento</p>
                 <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-700">
-                  <li>Proximos vencimientos: por cargar</li>
-                  <li>Pagos atrasados: sin registros conectados</li>
-                  <li>Promesas de pago y observaciones: pendiente de modulo</li>
+                  <li>Proximos vencimientos: {selectedOperation.nextDueDate ?? "Sin fecha de agenda"}</li>
+                  <li>Pagos atrasados: {selectedOperation.paymentStatus === "overdue" ? "Si" : "No"}</li>
+                  <li>Observaciones: {selectedOperation.notes ?? "Sin observaciones"}</li>
                 </ul>
+              </div>
+
+              <div className="rounded-[22px] border border-stone-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Cliente</p>
+                <div className="mt-3 space-y-2 text-sm leading-7 text-slate-700">
+                  <p>Nombre: {selectedOperation.clientName}</p>
+                  <p>Cedula: {selectedOperation.clientNationalId ?? "Sin dato"}</p>
+                  <p>Telefono: {selectedOperation.clientPhone ?? "Sin dato"}</p>
+                  <p>Correo: {selectedOperation.clientEmail ?? "Sin dato"}</p>
+                </div>
               </div>
             </div>
           ) : (
@@ -178,6 +193,16 @@ export function AdminFinanceSection() {
           )}
         </section>
       </div>
+
+      {isCreatingSale ? (
+        <AdminNewSaleModal
+          lots={lots}
+          onClose={() => setIsCreatingSale(false)}
+          onCreated={() => {
+            setSelectedOperationId(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -191,21 +216,54 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function buildFinanceOperation(item: LotData): FinanceOperation {
+function buildFinanceData(sales: SaleOperationRecord[]) {
+  const today = new Date().toISOString().slice(0, 10);
+  const weekLimit = addDaysToIsoDate(today, 7);
+
   return {
-    id: item.id,
-    lot: item,
-    lotLabel: buildLotLabel(item),
-    clientLabel: item.status === "sold" ? "Cliente a registrar" : "Reserva a asignar",
-    operationStatus: getStatusLabel(item.status, item.type),
-    nextDueDate: "Pendiente de plan",
-    nextPaymentLabel: getCommercialPriceSummary(item).value,
-    paymentStatus: "Sin calendario"
+    metrics: [
+      { label: "Ventas activas", value: String(sales.length) },
+      { label: "Vencen hoy", value: String(sales.filter((sale) => sale.nextDueDate === today).length) },
+      {
+        label: "Vencen esta semana",
+        value: String(sales.filter((sale) => sale.nextDueDate && sale.nextDueDate >= today && sale.nextDueDate <= weekLimit).length)
+      },
+      { label: "En mora", value: String(sales.filter((sale) => sale.paymentStatus === "overdue").length) },
+      {
+        label: "Cobros del mes",
+        value: formatPrice(0, sales[0]?.currency ?? "PYG")
+      },
+      {
+        label: "Reservas pendientes",
+        value: String(sales.filter((sale) => sale.operationType === "reserve").length)
+      }
+    ],
+    operations: sales
   };
 }
 
-function buildLotLabel(item: LotData) {
-  const manzana = item.manzana?.trim() || "?";
-  const lotNumber = item.lotNumber?.trim() || "--";
-  return `Lote ${manzana}-${lotNumber}`;
+function getOperationLabel(operation: SaleOperationRecord) {
+  return operation.operationType === "reserve" ? "Reserva" : "Venta";
+}
+
+function getPaymentLabel(status: SaleOperationRecord["paymentStatus"]) {
+  if (status === "paid") {
+    return "Pagada";
+  }
+
+  if (status === "overdue") {
+    return "Vencida";
+  }
+
+  if (status === "pending") {
+    return "Pendiente";
+  }
+
+  return "Sin calendario";
+}
+
+function addDaysToIsoDate(baseDate: string, days: number) {
+  const date = new Date(`${baseDate}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
