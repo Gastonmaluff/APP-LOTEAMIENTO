@@ -6,6 +6,7 @@ import { formatPrice } from "../../utils/mapUtils";
 import { useLots } from "../../contexts/LotsContext";
 import { AdminNewSaleModal } from "./AdminNewSaleModal";
 import { AdminRegisterPaymentModal } from "./AdminRegisterPaymentModal";
+import { AdminPaymentsCalendar } from "./AdminPaymentsCalendar";
 
 export function AdminFinanceSection() {
   const { lots } = useLots();
@@ -16,6 +17,7 @@ export function AdminFinanceSection() {
   const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
   const [selectedInstallments, setSelectedInstallments] = useState<InstallmentRecord[]>([]);
+  const [installmentsBySaleId, setInstallmentsBySaleId] = useState<Record<string, InstallmentRecord[]>>({});
 
   useEffect(() => {
     return subscribeToProjectSales(
@@ -56,6 +58,38 @@ export function AdminFinanceSection() {
     );
   }, [selectedOperation]);
 
+  useEffect(() => {
+    const saleIds = new Set(sales.map((sale) => sale.id));
+
+    setInstallmentsBySaleId((currentMap) =>
+      Object.fromEntries(Object.entries(currentMap).filter(([saleId]) => saleIds.has(saleId)))
+    );
+
+    if (sales.length === 0) {
+      return () => undefined;
+    }
+
+    const unsubscribers = sales.map((sale) =>
+      subscribeToSaleInstallments(
+        PROJECT_SLUG,
+        sale.id,
+        (nextInstallments) => {
+          setInstallmentsBySaleId((currentMap) => ({
+            ...currentMap,
+            [sale.id]: nextInstallments
+          }));
+        },
+        (nextError) => {
+          console.error(`[AdminFinanceSection] Error leyendo cuotas de ${sale.id}:`, nextError);
+        }
+      )
+    );
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [sales]);
+
   const financeData = useMemo(() => buildFinanceData(sales), [sales]);
   const nextDueInstallment = useMemo(
     () => resolveNextDueInstallment(selectedInstallments),
@@ -65,6 +99,26 @@ export function AdminFinanceSection() {
     () => sortInstallmentsForDisplay(selectedInstallments),
     [selectedInstallments]
   );
+  const calendarEntries = useMemo(
+    () =>
+      sales.flatMap((sale) =>
+        (installmentsBySaleId[sale.id] ?? [])
+          .map((installment) => ({
+            id: installment.id,
+            saleId: sale.id,
+            clientName: sale.clientName,
+            lotLabel: sale.lotLabel,
+            dueDate: installment.dueDate,
+            amount: installment.amount,
+            installmentNumber: installment.number,
+            status: getEffectiveInstallmentStatus(installment),
+            currency: sale.currency
+          }))
+          .filter((entry) => entry.status !== "paid")
+      ),
+    [installmentsBySaleId, sales]
+  );
+  const calendarLoading = loading || (sales.length > 0 && sales.some((sale) => installmentsBySaleId[sale.id] === undefined));
 
   return (
     <section className="space-y-6">
@@ -286,6 +340,8 @@ export function AdminFinanceSection() {
           )}
         </section>
       </div>
+
+      <AdminPaymentsCalendar entries={calendarEntries} loading={calendarLoading} />
 
       {isCreatingSale ? (
         <AdminNewSaleModal
