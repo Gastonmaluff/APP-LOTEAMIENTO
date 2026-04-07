@@ -22,6 +22,7 @@ export function AdminFinanceSection() {
   const [selectedInstallments, setSelectedInstallments] = useState<InstallmentRecord[]>([]);
   const [installmentsBySaleId, setInstallmentsBySaleId] = useState<Record<string, InstallmentRecord[]>>({});
   const [clientSearch, setClientSearch] = useState("");
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   useEffect(() => {
     return subscribeToProjectSales(
@@ -137,6 +138,10 @@ export function AdminFinanceSection() {
     () => sortInstallmentsForDisplay(selectedInstallments),
     [selectedInstallments]
   );
+  const installmentSummary = useMemo(
+    () => buildInstallmentSummary(selectedInstallments),
+    [selectedInstallments]
+  );
   const calendarLoading = loading || (sales.length > 0 && sales.some((sale) => installmentsBySaleId[sale.id] === undefined));
   const filteredClients = useMemo(() => {
     const normalizedQuery = clientSearch.trim().toLowerCase();
@@ -157,6 +162,10 @@ export function AdminFinanceSection() {
     () => clients.find((client) => client.id === selectedClientId) ?? null,
     [clients, selectedClientId]
   );
+
+  useEffect(() => {
+    setIsHistoryExpanded(false);
+  }, [selectedOperation?.id]);
 
   function openClientProfile(clientId: string) {
     setSelectedClientId(clientId);
@@ -387,12 +396,42 @@ export function AdminFinanceSection() {
               </div>
 
               <div className="rounded-[22px] border border-stone-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Historial de pagos</p>
-                {sortedInstallments.length === 0 ? (
-                  <p className="mt-3 text-sm leading-7 text-slate-600">
-                    Todavia no hay cuotas generadas para esta operacion.
-                  </p>
-                ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryExpanded((currentValue) => !currentValue)}
+                  className="flex w-full items-start justify-between gap-4 text-left"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                      Historial de pagos
+                    </p>
+                    {sortedInstallments.length === 0 ? (
+                      <p className="mt-3 text-sm leading-7 text-slate-600">
+                        Todavia no hay cuotas generadas para esta operacion.
+                      </p>
+                    ) : (
+                      <p className="mt-3 text-sm leading-7 text-slate-700">
+                        {installmentSummary.total} cuotas · {installmentSummary.paid} pagadas ·{" "}
+                        {installmentSummary.pending} pendientes · {installmentSummary.overdue} vencidas
+                      </p>
+                    )}
+                  </div>
+
+                  <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-stone-300 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0f2f35] transition hover:border-[#8fa88b]">
+                    {isHistoryExpanded ? "Ocultar historial" : "Ver historial"}
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 20 20"
+                      className={`h-4 w-4 transition-transform duration-300 ${isHistoryExpanded ? "rotate-180" : ""}`}
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </button>
+
+                {isHistoryExpanded && sortedInstallments.length > 0 ? (
                   <div className="mt-4 space-y-3">
                     {sortedInstallments.map((installment) => {
                       const effectiveStatus = getEffectiveInstallmentStatus(installment);
@@ -422,7 +461,7 @@ export function AdminFinanceSection() {
                       );
                     })}
                   </div>
-                )}
+                ) : null}
               </div>
 
               <div className="rounded-[22px] border border-stone-200 p-4">
@@ -550,6 +589,26 @@ function sortInstallmentsForDisplay(installments: InstallmentRecord[]) {
 
     return left.number - right.number;
   });
+}
+
+function buildInstallmentSummary(installments: InstallmentRecord[]) {
+  return installments.reduce(
+    (summary, installment) => {
+      const effectiveStatus = getEffectiveInstallmentStatus(installment);
+
+      if (effectiveStatus === "paid") {
+        summary.paid += 1;
+      } else if (effectiveStatus === "overdue") {
+        summary.overdue += 1;
+      } else {
+        summary.pending += 1;
+      }
+
+      summary.total += 1;
+      return summary;
+    },
+    { total: 0, paid: 0, pending: 0, overdue: 0 }
+  );
 }
 
 function getOperationLabel(operation: SaleOperationRecord) {
