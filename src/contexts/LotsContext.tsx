@@ -5,7 +5,7 @@ import { isFirebaseConfigured } from "../firebase/client";
 import { sortLots, subscribeToProjectLots } from "../services/lotsRepository";
 import type { LotData } from "../types/lots";
 
-type LotsSource = "firestore" | "seed-data" | "local-fallback";
+type LotsSource = "firestore" | "firestore-overlay" | "seed-data" | "local-fallback";
 
 type LotsContextValue = {
   lots: LotData[];
@@ -42,9 +42,22 @@ export function LotsProvider({ children }: { children: ReactNode }) {
           setSource("seed-data");
           setSeedRecommended(true);
         } else {
-          setLots(nextLots);
-          setSource("firestore");
-          setSeedRecommended(false);
+          const hasCompleteInventory = nextLots.length >= structuredLotsData.length;
+          const mergedLots = hasCompleteInventory ? nextLots : overlayFirestoreLots(nextLots);
+
+          setLots(mergedLots);
+          setSource(hasCompleteInventory ? "firestore" : "firestore-overlay");
+          setSeedRecommended(!hasCompleteInventory);
+
+          console.log("[LotsContext] Firestore parcial detectado:", {
+            firestoreLotsCount: nextLots.length,
+            structuredLotsCount: structuredLotsData.length,
+            firestoreLotIds: nextLots.map((item) => ({
+              id: item.id,
+              status: item.status ?? null
+            })),
+            usingOverlay: !hasCompleteInventory
+          });
         }
 
         setError(null);
@@ -87,6 +100,20 @@ export function LotsProvider({ children }: { children: ReactNode }) {
       {children}
     </LotsContext.Provider>
   );
+}
+
+function overlayFirestoreLots(firestoreLots: LotData[]) {
+  const firestoreLotsById = new Map(firestoreLots.map((item) => [item.id, item]));
+  const mergedStructuredLots = structuredLotsData.map((item) => {
+    const firestoreItem = firestoreLotsById.get(item.id);
+    return firestoreItem ? { ...item, ...firestoreItem, id: item.id } : item;
+  });
+
+  const extraFirestoreLots = firestoreLots.filter(
+    (item) => !mergedStructuredLots.some((structuredItem) => structuredItem.id === item.id)
+  );
+
+  return sortLots([...mergedStructuredLots, ...extraFirestoreLots]);
 }
 
 export function useLots() {

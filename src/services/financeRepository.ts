@@ -159,6 +159,18 @@ export async function createProjectSale(
     input.commercial.installments
   );
 
+  console.log("[Finance] Registrando operacion:", {
+    projectSlug,
+    lotId: lot.id,
+    lotLabel,
+    lotStatusBefore: lot.status ?? null,
+    lotStatusAfter: lotStatus,
+    operationType: input.operationType,
+    clientNationalId: normalizeBlank(input.client.nationalId),
+    price: input.commercial.price,
+    currency: input.commercial.currency
+  });
+
   coreBatch.set(
     saleRef,
     {
@@ -221,6 +233,13 @@ export async function createProjectSale(
   });
 
   await coreBatch.commit();
+
+  console.log("[Finance] Venta principal guardada:", {
+    saleId: saleRef.id,
+    clientId: clientRef.id,
+    lotId: lot.id,
+    persistedLotStatus: lotStatus
+  });
 
   await createInstallmentsInChunks({
     saleRef,
