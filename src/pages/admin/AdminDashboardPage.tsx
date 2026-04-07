@@ -1,14 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { AdminFinanceSection } from "../../components/admin/AdminFinanceSection";
-import { PROJECT_NAME } from "../../config/project";
+import { PROJECT_NAME, PROJECT_SLUG } from "../../config/project";
+import { useAuth } from "../../contexts/AuthContext";
 import { useLots } from "../../contexts/LotsContext";
+import { syncProjectLotsFromState } from "../../services/lotsRepository";
 import { AdminInventorySection } from "./AdminLotsPage";
 
 type AdminModule = "inventory" | "finance";
 
 export function AdminDashboardPage() {
-  const { lots } = useLots();
+  const { user } = useAuth();
+  const { lots, seedRecommended, source } = useLots();
   const [activeModule, setActiveModule] = useState<AdminModule>("inventory");
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const syncStartedRef = useRef(false);
 
   const metrics = useMemo(() => {
     const vendibleLots = lots.filter((item) => item.type === "lote");
@@ -20,6 +25,31 @@ export function AdminDashboardPage() {
       sold: vendibleLots.filter((item) => item.status === "sold").length
     };
   }, [lots]);
+
+  useEffect(() => {
+    if (!user || !seedRecommended || source === "local-fallback" || syncStartedRef.current) {
+      return;
+    }
+
+    syncStartedRef.current = true;
+    setSyncError(null);
+
+    console.log("[AdminDashboard] Sincronizando inventario completo hacia Firestore:", {
+      source,
+      lotsCount: lots.length,
+      userEmail: user.email ?? null
+    });
+
+    void syncProjectLotsFromState(PROJECT_SLUG, lots, user.email ?? null)
+      .then((result) => {
+        console.log("[AdminDashboard] Inventario sincronizado:", result);
+      })
+      .catch((error) => {
+        console.error("[AdminDashboard] Error sincronizando inventario:", error);
+        setSyncError(error instanceof Error ? error.message : "No se pudo sincronizar el inventario.");
+        syncStartedRef.current = false;
+      });
+  }, [lots, seedRecommended, source, user]);
 
   return (
     <div className="space-y-5 sm:space-y-8">
@@ -43,6 +73,12 @@ export function AdminDashboardPage() {
 
       {activeModule === "inventory" ? (
         <>
+          {syncError ? (
+            <section className="rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {syncError}
+            </section>
+          ) : null}
+
           <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
             <DashboardCard label="Total de lotes" value={String(metrics.total)} tone="neutral" />
             <DashboardCard label="Disponibles" value={String(metrics.available)} tone="available" />

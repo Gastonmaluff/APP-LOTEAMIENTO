@@ -258,6 +258,58 @@ export async function seedProjectLots(projectSlug: string, userEmail?: string | 
   };
 }
 
+export async function syncProjectLotsFromState(projectSlug: string, lots: LotData[], userEmail?: string | null) {
+  if (!db) {
+    throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
+  }
+
+  const projectRef = doc(db, "projects", projectSlug);
+  const activityRef = doc(collection(projectRef, "adminActivity"));
+  const batch = writeBatch(db);
+
+  batch.set(
+    projectRef,
+    {
+      slug: projectSlug,
+      name: PROJECT_NAME,
+      publicRoute: PUBLIC_PROJECT_ROUTE,
+      expectedCollections: EXPECTED_FIRESTORE_COLLECTIONS,
+      updatedAt: serverTimestamp(),
+      syncedAt: serverTimestamp(),
+      syncedBy: userEmail ?? null
+    },
+    { merge: true }
+  );
+
+  lots.forEach((item) => {
+    batch.set(
+      doc(projectRef, "lots", item.id),
+      {
+        ...serializeLotForWrite(item),
+        projectSlug,
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  });
+
+  batch.set(activityRef, {
+    action: "sync-lots-from-state",
+    projectSlug,
+    lotsCount: lots.length,
+    userEmail: userEmail ?? null,
+    createdAt: serverTimestamp()
+  });
+
+  await batch.commit();
+
+  return {
+    lotsCount: lots.length,
+    projectSlug
+  };
+}
+
 export async function updateProjectLot(projectSlug: string, item: LotData, userEmail?: string | null) {
   if (!db) {
     throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
