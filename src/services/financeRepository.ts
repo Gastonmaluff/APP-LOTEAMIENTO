@@ -408,6 +408,18 @@ export async function createClientDocumentRecord(
     );
   }
 
+  if (input.kind === "contract" && input.saleId) {
+    batch.set(
+      doc(projectRef, "sales", input.saleId),
+      {
+        contractUrl: input.url,
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  }
+
   await batch.commit();
   return documentRef.id;
 }

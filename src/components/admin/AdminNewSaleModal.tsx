@@ -1,10 +1,15 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { PROJECT_SLUG } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
-import { uploadFinanceDocument } from "../../services/financeDocumentsRepository";
-import { createProjectSale } from "../../services/financeRepository";
+import {
+  createClientDocumentRecord,
+  createProjectSale
+} from "../../services/financeRepository";
+import { uploadFinanceDocumentAsset } from "../../services/financeDocumentsRepository";
 import type { NewSaleInput, OperationType } from "../../types/finance";
 import type { LotData } from "../../types/lots";
+import { compressImageFile, formatFileSize } from "../../utils/fileCompression";
+import { formatPrice } from "../../utils/mapUtils";
 
 type AdminNewSaleModalProps = {
   lots: LotData[];
@@ -30,6 +35,20 @@ type SaleFormState = {
   saleNotes: string;
 };
 
+type SubmissionStage =
+  | "idle"
+  | "saving-sale"
+  | "updating-lot"
+  | "generating-plan"
+  | "uploading-documents"
+  | "finalizing";
+
+type DocumentStats = {
+  originalSize: number;
+  compressedSize: number;
+  compressed: boolean;
+};
+
 const initialForm: SaleFormState = {
   lotId: "",
   lotSearch: "",
@@ -48,6 +67,14 @@ const initialForm: SaleFormState = {
   saleNotes: ""
 };
 
+const stageOrder: SubmissionStage[] = [
+  "saving-sale",
+  "updating-lot",
+  "generating-plan",
+  "uploading-documents",
+  "finalizing"
+];
+
 export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModalProps) {
   const { user } = useAuth();
   const [form, setForm] = useState<SaleFormState>(initialForm);
@@ -56,6 +83,8 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentStage, setCurrentStage] = useState<SubmissionStage>("idle");
+  const [documentStats, setDocumentStats] = useState<Record<string, DocumentStats>>({});
 
   const availableLots = useMemo(
     () =>
@@ -80,17 +109,66 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
     [availableLots, form.lotId]
   );
 
+  const listPriceValue = useMemo(() => {
+    if (!selectedLot || typeof selectedLot.price !== "number") {
+      return null;
+    }
+
+    return selectedLot.price;
+  }, [selectedLot]);
+
+  const listPriceCurrency = selectedLot?.currency ?? form.currency;
+  const closePriceValue = useMemo(() => parseFormattedNumber(form.price), [form.price]);
+  const priceDifference = useMemo(() => {
+    if (!selectedLot || typeof selectedLot.price !== "number" || closePriceValue === null) {
+      return null;
+    }
+
+    return closePriceValue - selectedLot.price;
+  }, [closePriceValue, selectedLot]);
+
+  const activeStages = useMemo(
+    () =>
+      stageOrder.filter((stage) => {
+        if (stage !== "uploading-documents") {
+          return true;
+        }
+
+        return Boolean(documentFront || documentBack || contractFile);
+      }),
+    [contractFile, documentBack, documentFront]
+  );
+
+  const currentStageIndex = activeStages.findIndex((stage) => stage === currentStage);
+  const progressPercent = saving && currentStageIndex >= 0
+    ? Math.round(((currentStageIndex + 1) / activeStages.length) * 100)
+    : 0;
+
+  useEffect(() => {
+    if (!selectedLot) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      currency: selectedLot.currency ?? current.currency,
+      price: typeof selectedLot.price === "number" ? formatNumericInput(selectedLot.price) : current.price
+    }));
+  }, [selectedLot?.id]);
+
   async function handleSubmit() {
     if (!selectedLot) {
       setError("Selecciona un lote disponible.");
       return;
     }
 
-    const parsedPrice = Number(form.price.replace(",", "."));
-    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+    const parsedPrice = parseFormattedNumber(form.price);
+    if (parsedPrice === null || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
       setError("Ingresa un precio valido.");
       return;
     }
+
+    const closePrice = parsedPrice;
 
     if (!form.fullName.trim() || !form.nationalId.trim() || !form.phone.trim()) {
       setError("Completa nombre, cedula y telefono del cliente.");
@@ -98,15 +176,10 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
     }
 
     setSaving(true);
+    setCurrentStage("saving-sale");
     setError(null);
 
     try {
-      const [documentFrontUrl, documentBackUrl, contractUrl] = await Promise.all([
-        documentFront ? uploadFinanceDocument(PROJECT_SLUG, selectedLot.id, "client-front", documentFront) : Promise.resolve(null),
-        documentBack ? uploadFinanceDocument(PROJECT_SLUG, selectedLot.id, "client-back", documentBack) : Promise.resolve(null),
-        contractFile ? uploadFinanceDocument(PROJECT_SLUG, selectedLot.id, "contract", contractFile) : Promise.resolve(null)
-      ]);
-
       const input: NewSaleInput = {
         lotId: selectedLot.id,
         operationType: form.operationType,
@@ -115,27 +188,50 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
           nationalId: form.nationalId,
           phone: form.phone,
           email: form.email,
-          notes: form.clientNotes,
-          documentFrontUrl,
-          documentBackUrl
+          notes: form.clientNotes
         },
         commercial: {
           currency: form.currency,
-          price: parsedPrice,
+          price: closePrice,
           deliveryPercent: parseOptionalNumber(form.deliveryPercent),
           installments: parseOptionalInteger(form.installments),
           startDate: form.startDate,
           firstDueDate: form.firstDueDate,
-          notes: form.saleNotes,
-          contractUrl
+          notes: form.saleNotes
         }
       };
 
-      await createProjectSale(PROJECT_SLUG, selectedLot, input, user?.email ?? null);
+      const createdOperation = await createProjectSale(PROJECT_SLUG, selectedLot, input, user?.email ?? null);
+
+      setCurrentStage("updating-lot");
+      await pauseForFeedback(160);
+
+      setCurrentStage("generating-plan");
+      await pauseForFeedback(180);
+
+      if (documentFront || documentBack || contractFile) {
+        setCurrentStage("uploading-documents");
+        await uploadDocumentsAfterSale({
+          clientId: createdOperation.clientId,
+          saleId: createdOperation.saleId,
+          saleLabel: buildLotLabel(selectedLot),
+          documentFront,
+          documentBack,
+          contractFile,
+          scopeId: selectedLot.id,
+          setDocumentStats,
+          userEmail: user?.email ?? null
+        });
+      }
+
+      setCurrentStage("finalizing");
+      await pauseForFeedback(180);
+
       onCreated?.();
       onClose();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "No se pudo registrar la operacion.");
+      setCurrentStage("idle");
     } finally {
       setSaving(false);
     }
@@ -153,11 +249,54 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
           <button
             type="button"
             onClick={onClose}
-            className="self-start rounded-full border border-stone-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+            disabled={saving}
+            className="self-start rounded-full border border-stone-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cerrar
           </button>
         </div>
+
+        {saving ? (
+          <div className="mt-5 rounded-[24px] border border-stone-200 bg-white/88 p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Proceso de registro</p>
+                <p className="mt-2 text-base font-semibold text-[#092930]">{getStageLabel(currentStage)}</p>
+              </div>
+              <div className="text-sm font-semibold text-[#715b3b]">{progressPercent}%</div>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-stone-200">
+              <div
+                className="h-full rounded-full bg-[#1f3d2b] transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+              {activeStages.map((stage, index) => {
+                const stageIndex = activeStages.findIndex((item) => item === currentStage);
+                const isDone = stageIndex > index;
+                const isCurrent = currentStage === stage;
+
+                return (
+                  <div
+                    key={stage}
+                    className={`rounded-[18px] border px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] ${
+                      isCurrent
+                        ? "border-[#8fa88b] bg-[#eef4ea] text-[#1f3d2b]"
+                        : isDone
+                          ? "border-[#cedcc8] bg-[#eff5ec] text-[#567052]"
+                          : "border-stone-200 bg-white text-slate-500"
+                    }`}
+                  >
+                    {getStageLabel(stage)}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="space-y-4">
@@ -185,6 +324,24 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
                 ))}
               </select>
             </Field>
+
+            {selectedLot ? (
+              <div className="rounded-[20px] border border-stone-200 bg-white/85 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Precio de lista</p>
+                <p className="mt-2 text-lg font-semibold text-[#092930]">
+                  {formatPrice(listPriceValue, listPriceCurrency)}
+                </p>
+                {priceDifference !== null && priceDifference !== 0 ? (
+                  <p className="mt-2 text-sm text-slate-600">
+                    {priceDifference < 0
+                      ? `Descuento aplicado: ${formatPrice(Math.abs(priceDifference), listPriceCurrency)}`
+                      : `Ajuste sobre lista: ${formatPrice(priceDifference, listPriceCurrency)}`}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500">El precio de cierre coincide con el valor actual del lote.</p>
+                )}
+              </div>
+            ) : null}
 
             <Field label="Tipo de operacion">
               <div className="grid grid-cols-2 gap-2 rounded-[20px] border border-stone-200 bg-white p-1">
@@ -232,9 +389,27 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="space-y-4">
             <SectionTitle title="Documentos" />
-            <UploadField label="Frente de cedula" file={documentFront} onChange={setDocumentFront} accept="image/*" />
-            <UploadField label="Dorso de cedula" file={documentBack} onChange={setDocumentBack} accept="image/*" />
-            <UploadField label="Contrato" file={contractFile} onChange={setContractFile} accept=".pdf,image/*" />
+            <UploadField
+              label="Frente de cedula"
+              file={documentFront}
+              stats={documentStats["front"] ?? null}
+              onChange={setDocumentFront}
+              accept="image/*"
+            />
+            <UploadField
+              label="Dorso de cedula"
+              file={documentBack}
+              stats={documentStats["back"] ?? null}
+              onChange={setDocumentBack}
+              accept="image/*"
+            />
+            <UploadField
+              label="Contrato"
+              file={contractFile}
+              stats={documentStats["contract"] ?? null}
+              onChange={setContractFile}
+              accept=".pdf,image/*"
+            />
           </div>
 
           <div className="space-y-4">
@@ -251,8 +426,24 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
                 </select>
               </Field>
 
-              <Field label="Precio">
-                <input value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} className="field-light" inputMode="decimal" />
+              <Field label="Precio de cierre">
+                <input
+                  value={form.price}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      price: formatUserTypedNumericInput(event.target.value)
+                    }))
+                  }
+                  onBlur={() =>
+                    setForm((current) => ({
+                      ...current,
+                      price: formatNumericInput(parseFormattedNumber(current.price))
+                    }))
+                  }
+                  className="field-light"
+                  inputMode="decimal"
+                />
               </Field>
 
               <Field label="Entrega %">
@@ -295,18 +486,98 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
             disabled={saving}
             className="rounded-full bg-[#0f2f35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Registrando..." : "Confirmar operacion"}
+            {saving ? getStageLabel(currentStage) : "Confirmar operacion"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+            disabled={saving}
+            className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancelar
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+async function uploadDocumentsAfterSale({
+  clientId,
+  contractFile,
+  documentBack,
+  documentFront,
+  saleId,
+  saleLabel,
+  scopeId,
+  setDocumentStats,
+  userEmail
+}: {
+  clientId: string;
+  saleId: string;
+  saleLabel: string;
+  scopeId: string;
+  documentFront: File | null;
+  documentBack: File | null;
+  contractFile: File | null;
+  setDocumentStats: Dispatch<SetStateAction<Record<string, DocumentStats>>>;
+  userEmail?: string | null;
+}) {
+  const uploadJobs = [
+    {
+      key: "front",
+      kind: "client-front" as const,
+      file: documentFront,
+      compress: true
+    },
+    {
+      key: "back",
+      kind: "client-back" as const,
+      file: documentBack,
+      compress: true
+    },
+    {
+      key: "contract",
+      kind: "contract" as const,
+      file: contractFile,
+      compress: contractFile?.type.startsWith("image/") ?? false
+    }
+  ].filter((job) => Boolean(job.file));
+
+  await Promise.all(
+    uploadJobs.map(async (job) => {
+      const sourceFile = job.file as File;
+      const compression = job.compress ? await compressImageFile(sourceFile) : {
+        file: sourceFile,
+        originalSize: sourceFile.size,
+        compressedSize: sourceFile.size,
+        compressed: false
+      };
+
+      setDocumentStats((current) => ({
+        ...current,
+        [job.key]: {
+          originalSize: compression.originalSize,
+          compressedSize: compression.compressedSize,
+          compressed: compression.compressed
+        }
+      }));
+
+      const asset = await uploadFinanceDocumentAsset(PROJECT_SLUG, scopeId, job.kind, compression.file);
+      await createClientDocumentRecord(
+        PROJECT_SLUG,
+        clientId,
+        {
+          kind: job.kind,
+          url: asset.url,
+          storagePath: asset.storagePath,
+          name: asset.name,
+          saleId: job.kind === "contract" ? saleId : null,
+          saleLabel: job.kind === "contract" ? saleLabel : null
+        },
+        userEmail ?? null
+      );
+    })
   );
 }
 
@@ -342,12 +613,14 @@ function UploadField({
   accept,
   file,
   label,
-  onChange
+  onChange,
+  stats
 }: {
   accept: string;
   file: File | null;
   label: string;
   onChange: (file: File | null) => void;
+  stats: DocumentStats | null;
 }) {
   return (
     <label className="block rounded-[20px] border border-stone-200 bg-white/80 p-3">
@@ -358,6 +631,13 @@ function UploadField({
           Seleccionar
         </span>
       </div>
+      <p className="mt-2 text-xs leading-6 text-slate-500">
+        {stats
+          ? stats.compressed
+            ? `Optimizada antes de subir: ${formatFileSize(stats.originalSize)} -> ${formatFileSize(stats.compressedSize)}`
+            : `Lista para subir: ${formatFileSize(stats.originalSize)}`
+          : "Las imagenes se optimizan automaticamente antes de subir."}
+      </p>
       <input
         type="file"
         accept={accept}
@@ -375,16 +655,61 @@ function buildLotLabel(item: LotData) {
 }
 
 function parseOptionalNumber(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsed = Number(trimmed.replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : null;
+  const parsed = parseFormattedNumber(value);
+  return parsed === null ? null : parsed;
 }
 
 function parseOptionalInteger(value: string) {
   const parsed = parseOptionalNumber(value);
   return parsed === null ? null : Math.round(parsed);
+}
+
+function formatNumericInput(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("es-PY", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 2
+  }).format(value);
+}
+
+function formatUserTypedNumericInput(value: string) {
+  const parsed = parseFormattedNumber(value);
+  return parsed === null ? "" : formatNumericInput(parsed);
+}
+
+function parseFormattedNumber(value: string) {
+  const normalized = value.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getStageLabel(stage: SubmissionStage) {
+  switch (stage) {
+    case "saving-sale":
+      return "Guardando venta...";
+    case "updating-lot":
+      return "Actualizando estado del lote...";
+    case "generating-plan":
+      return "Generando plan de pagos...";
+    case "uploading-documents":
+      return "Subiendo documentos...";
+    case "finalizing":
+      return "Finalizando operacion...";
+    default:
+      return "Preparando operacion...";
+  }
+}
+
+function pauseForFeedback(durationMs: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
 }
