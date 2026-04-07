@@ -2,14 +2,11 @@ import {
   collection,
   doc,
   type DocumentReference,
-  getDocs,
-  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   Timestamp,
-  where,
   writeBatch
 } from "firebase/firestore";
 import { PROJECT_NAME, PROJECT_SLUG, PUBLIC_PROJECT_ROUTE } from "../config/project";
@@ -134,16 +131,9 @@ export async function createProjectSale(
   const salesRef = collection(projectRef, "sales");
   const activityRef = doc(collection(projectRef, "adminActivity"));
   const lotRef = doc(projectRef, "lots", lot.id);
-
-  const clientSnapshot =
-    input.client.nationalId.trim()
-      ? await getDocs(query(clientsRef, where("nationalId", "==", input.client.nationalId.trim()), limit(1)))
-      : null;
-
-  const existingClientDoc = clientSnapshot && !clientSnapshot.empty ? clientSnapshot.docs[0] : null;
-  const clientRef = existingClientDoc ? existingClientDoc.ref : doc(clientsRef);
   const saleRef = doc(salesRef);
-  const batch = writeBatch(db);
+  const clientRef = doc(clientsRef, resolveClientDocumentId(input.client.nationalId, input.client.fullName));
+  const coreBatch = writeBatch(db);
 
   const clientPayload = {
     fullName: input.client.fullName.trim(),
@@ -155,10 +145,11 @@ export async function createProjectSale(
     documentBackUrl: input.client.documentBackUrl ?? null,
     updatedAt: serverTimestamp(),
     updatedBy: userEmail ?? null,
-    ...(existingClientDoc ? {} : { createdAt: serverTimestamp(), createdBy: userEmail ?? null })
+    createdAt: serverTimestamp(),
+    createdBy: userEmail ?? null
   };
 
-  batch.set(clientRef, clientPayload, { merge: true });
+  coreBatch.set(clientRef, clientPayload, { merge: true });
 
   const lotLabel = buildLotLabel(lot);
   const lotStatus = input.operationType === "reserve" ? "reserved" : "sold";
@@ -168,7 +159,7 @@ export async function createProjectSale(
     input.commercial.installments
   );
 
-  batch.set(
+  coreBatch.set(
     saleRef,
     {
       projectSlug,
@@ -203,17 +194,7 @@ export async function createProjectSale(
     { merge: true }
   );
 
-  createInstallments(
-    batch,
-    saleRef,
-    clientRef.id,
-    lot.id,
-    input.commercial.firstDueDate,
-    input.commercial.installments,
-    nextPaymentAmount
-  );
-
-  batch.set(
+  coreBatch.set(
     lotRef,
     {
       status: lotStatus,
@@ -229,7 +210,7 @@ export async function createProjectSale(
     { merge: true }
   );
 
-  batch.set(activityRef, {
+  coreBatch.set(activityRef, {
     action: input.operationType === "reserve" ? "create-reserve" : "create-sale",
     projectSlug,
     lotId: lot.id,
@@ -239,7 +220,16 @@ export async function createProjectSale(
     createdAt: serverTimestamp()
   });
 
-  await batch.commit();
+  await coreBatch.commit();
+
+  await createInstallmentsInChunks({
+    saleRef,
+    clientId: clientRef.id,
+    lotId: lot.id,
+    firstDueDate: input.commercial.firstDueDate,
+    installments: input.commercial.installments,
+    amount: nextPaymentAmount
+  });
 
   return {
     saleId: saleRef.id,
@@ -487,39 +477,53 @@ export async function deleteClientDocumentRecord(
   await batch.commit();
 }
 
-function createInstallments(
-  batch: ReturnType<typeof writeBatch>,
-  saleRef: DocumentReference,
-  clientId: string,
-  lotId: string,
-  firstDueDate: string,
-  installments: number | null,
-  amount: number | null
-) {
-  if (!installments || !amount || !firstDueDate) {
+async function createInstallmentsInChunks({
+  saleRef,
+  clientId,
+  lotId,
+  firstDueDate,
+  installments,
+  amount
+}: {
+  saleRef: DocumentReference;
+  clientId: string;
+  lotId: string;
+  firstDueDate: string;
+  installments: number | null;
+  amount: number | null;
+}) {
+  if (!db || !installments || !amount || !firstDueDate) {
     return;
   }
 
+  const chunkSize = 40;
   const installmentsRef = collection(saleRef, "installments");
 
-  for (let index = 0; index < installments; index += 1) {
-    const installmentRef = doc(installmentsRef);
-    const dueDate = addMonthsToIsoDate(firstDueDate, index);
+  for (let chunkStart = 0; chunkStart < installments; chunkStart += chunkSize) {
+    const batch = writeBatch(db);
+    const chunkEnd = Math.min(chunkStart + chunkSize, installments);
 
-    batch.set(installmentRef, {
-      saleId: saleRef.id,
-      lotId,
-      clientId,
-      number: index + 1,
-      dueDate,
-      amount,
-      status: "pending",
-      paidAt: null,
-      paymentMethod: null,
-      note: null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
+    for (let index = chunkStart; index < chunkEnd; index += 1) {
+      const installmentRef = doc(installmentsRef);
+      const dueDate = addMonthsToIsoDate(firstDueDate, index);
+
+      batch.set(installmentRef, {
+        saleId: saleRef.id,
+        lotId,
+        clientId,
+        number: index + 1,
+        dueDate,
+        amount,
+        status: "pending",
+        paidAt: null,
+        paymentMethod: null,
+        note: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    await batch.commit();
   }
 }
 
@@ -600,6 +604,22 @@ function buildLotLabel(lot: LotData) {
   const manzana = lot.manzana?.trim() || "?";
   const lotNumber = lot.lotNumber?.trim() || "--";
   return `Lote ${manzana}-${lotNumber}`;
+}
+
+function resolveClientDocumentId(nationalId: string, fullName: string) {
+  const normalizedNationalId = nationalId.replace(/\D/g, "");
+  if (normalizedNationalId) {
+    return `ci-${normalizedNationalId}`;
+  }
+
+  const normalizedName = fullName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalizedName ? `name-${normalizedName}` : `client-${Date.now()}`;
 }
 
 function calculateInstallmentAmount(price: number, deliveryPercent: number | null, installments: number | null) {
