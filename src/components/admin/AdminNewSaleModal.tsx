@@ -19,6 +19,7 @@ type AdminNewSaleModalProps = {
 
 type SaleFormState = {
   lotId: string;
+  isTest: boolean;
   lotSearch: string;
   fullName: string;
   nationalId: string;
@@ -51,6 +52,7 @@ type DocumentStats = {
 
 const initialForm: SaleFormState = {
   lotId: "",
+  isTest: false,
   lotSearch: "",
   fullName: "",
   nationalId: "",
@@ -89,9 +91,9 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
   const availableLots = useMemo(
     () =>
       lots
-        .filter((item) => item.type === "lote" && item.status === "available")
+        .filter((item) => item.type === "lote" && (form.isTest || item.status === "available"))
         .sort((left, right) => buildLotLabel(left).localeCompare(buildLotLabel(right), "es")),
-    [lots]
+    [form.isTest, lots]
   );
 
   const filteredLots = useMemo(() => {
@@ -182,6 +184,7 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
     try {
       const input: NewSaleInput = {
         lotId: selectedLot.id,
+        isTest: form.isTest,
         operationType: form.operationType,
         client: {
           fullName: form.fullName,
@@ -324,6 +327,27 @@ export function AdminNewSaleModal({ lots, onClose, onCreated }: AdminNewSaleModa
                 ))}
               </select>
             </Field>
+
+            <label className="flex items-center gap-3 rounded-[18px] border border-stone-200 bg-white/80 px-4 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.isTest}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    isTest: event.target.checked,
+                    lotId: ""
+                  }))
+                }
+                className="h-4 w-4 rounded border-stone-300 text-[#092930] focus:ring-[#8fa88b]"
+              />
+              <span>
+                Marcar como prueba
+                <span className="mt-1 block text-xs leading-5 text-slate-500">
+                  No cambia el estado real del lote ni afecta el portal publico.
+                </span>
+              </span>
+            </label>
 
             {selectedLot ? (
               <div className="rounded-[20px] border border-stone-200 bg-white/85 px-4 py-4">

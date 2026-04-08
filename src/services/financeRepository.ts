@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   type DocumentReference,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -179,6 +180,7 @@ export async function createProjectSale(
       publicRoute: PUBLIC_PROJECT_ROUTE,
       lotId: lot.id,
       lotLabel,
+      isTest: input.isTest,
       clientId: clientRef.id,
       clientName: input.client.fullName.trim(),
       clientNationalId: normalizeBlank(input.client.nationalId),
@@ -206,37 +208,45 @@ export async function createProjectSale(
     { merge: true }
   );
 
-  coreBatch.set(
-    lotRef,
-    {
-      id: lot.id,
-      type: lot.type,
-      manzana: lot.manzana ?? null,
-      lotNumber: lot.lotNumber ?? null,
-      name: lot.name ?? null,
-      area: lot.area ?? null,
-      finalPrice: lot.finalPrice ?? null,
-      financingText: lot.financingText ?? null,
-      photo1Url: lot.photo1Url ?? null,
-      photo2Url: lot.photo2Url ?? null,
-      dimensions: lot.dimensions ?? null,
-      description: lot.description ?? null,
-      sourcePage: lot.sourcePage ?? null,
-      status: lotStatus,
-      saleId: saleRef.id,
-      clientId: clientRef.id,
-      currency: input.commercial.currency,
-      price: input.commercial.price,
-      deliveryPercent: input.commercial.deliveryPercent ?? null,
-      installments: input.commercial.installments ?? null,
-      updatedAt: serverTimestamp(),
-      updatedBy: userEmail ?? null
-    },
-    { merge: true }
-  );
+  if (!input.isTest) {
+    coreBatch.set(
+      lotRef,
+      {
+        id: lot.id,
+        type: lot.type,
+        manzana: lot.manzana ?? null,
+        lotNumber: lot.lotNumber ?? null,
+        name: lot.name ?? null,
+        area: lot.area ?? null,
+        finalPrice: lot.finalPrice ?? null,
+        financingText: lot.financingText ?? null,
+        photo1Url: lot.photo1Url ?? null,
+        photo2Url: lot.photo2Url ?? null,
+        dimensions: lot.dimensions ?? null,
+        description: lot.description ?? null,
+        sourcePage: lot.sourcePage ?? null,
+        status: lotStatus,
+        saleId: saleRef.id,
+        clientId: clientRef.id,
+        currency: input.commercial.currency,
+        price: input.commercial.price,
+        deliveryPercent: input.commercial.deliveryPercent ?? null,
+        installments: input.commercial.installments ?? null,
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  }
 
   coreBatch.set(activityRef, {
-    action: input.operationType === "reserve" ? "create-reserve" : "create-sale",
+    action: input.isTest
+      ? input.operationType === "reserve"
+        ? "create-test-reserve"
+        : "create-test-sale"
+      : input.operationType === "reserve"
+        ? "create-reserve"
+        : "create-sale",
     projectSlug,
     lotId: lot.id,
     saleId: saleRef.id,
@@ -562,6 +572,7 @@ async function createInstallmentsInChunks({
 function normalizeSale(id: string, rawData: FirestoreRecord): SaleOperationRecord {
   return {
     id,
+    isTest: rawData.isTest === true,
     clientId: normalizeString(rawData.clientId) ?? "",
     clientName: normalizeString(rawData.clientName) ?? "Cliente sin nombre",
     clientNationalId: normalizeString(rawData.clientNationalId),
@@ -585,6 +596,38 @@ function normalizeSale(id: string, rawData: FirestoreRecord): SaleOperationRecor
     contractUrl: normalizeString(rawData.contractUrl),
     createdAtMs: normalizeTimestamp(rawData.createdAt)
   };
+}
+
+export async function deleteTestSaleOperation(
+  projectSlug: string,
+  saleId: string,
+  userEmail?: string | null
+) {
+  if (!db) {
+    throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
+  }
+
+  const projectRef = doc(db, "projects", projectSlug);
+  const saleRef = doc(projectRef, "sales", saleId);
+  const installmentsRef = collection(saleRef, "installments");
+  const activityRef = doc(collection(projectRef, "adminActivity"));
+  const batch = writeBatch(db);
+
+  const installmentsSnapshot = await getDocs(installmentsRef);
+  installmentsSnapshot.forEach((documentSnapshot) => {
+    batch.delete(documentSnapshot.ref);
+  });
+
+  batch.delete(saleRef);
+  batch.set(activityRef, {
+    action: "delete-test-sale",
+    projectSlug,
+    saleId,
+    userEmail: userEmail ?? null,
+    createdAt: serverTimestamp()
+  });
+
+  await batch.commit();
 }
 
 function normalizeClient(id: string, rawData: FirestoreRecord): ClientRecord {

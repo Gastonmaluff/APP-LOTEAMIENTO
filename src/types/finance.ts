@@ -30,6 +30,7 @@ export type ClientDocumentRecord = {
 
 export type SaleOperationRecord = {
   id: string;
+  isTest: boolean;
   clientId: string;
   clientName: string;
   clientNationalId: string | null;
@@ -79,6 +80,7 @@ export type RegisterPaymentInput = {
 
 export type NewSaleInput = {
   lotId: string;
+  isTest: boolean;
   operationType: OperationType;
   client: {
     fullName: string;

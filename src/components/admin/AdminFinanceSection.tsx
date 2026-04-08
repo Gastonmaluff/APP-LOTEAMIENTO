@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PROJECT_SLUG } from "../../config/project";
-import { subscribeToProjectClients, subscribeToProjectSales, subscribeToSaleInstallments, getEffectiveInstallmentStatus, resolveNextDueInstallment } from "../../services/financeRepository";
+import { useAuth } from "../../contexts/AuthContext";
+import { deleteTestSaleOperation, subscribeToProjectClients, subscribeToProjectSales, subscribeToSaleInstallments, getEffectiveInstallmentStatus, resolveNextDueInstallment } from "../../services/financeRepository";
 import type { ClientRecord, InstallmentRecord, InstallmentStatus, SaleOperationRecord } from "../../types/finance";
 import { formatPrice } from "../../utils/mapUtils";
 import { useLots } from "../../contexts/LotsContext";
@@ -10,6 +11,7 @@ import { AdminPaymentsCalendar, type CalendarPaymentEntry } from "./AdminPayment
 import { AdminClientProfileModal } from "./AdminClientProfileModal";
 
 export function AdminFinanceSection() {
+  const { user } = useAuth();
   const { lots } = useLots();
   const [sales, setSales] = useState<SaleOperationRecord[]>([]);
   const [clients, setClients] = useState<ClientRecord[]>([]);
@@ -23,6 +25,8 @@ export function AdminFinanceSection() {
   const [installmentsBySaleId, setInstallmentsBySaleId] = useState<Record<string, InstallmentRecord[]>>({});
   const [clientSearch, setClientSearch] = useState("");
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [saleVisibilityFilter, setSaleVisibilityFilter] = useState<"real" | "test" | "all">("real");
+  const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
 
   useEffect(() => {
     return subscribeToProjectSales(
@@ -52,9 +56,21 @@ export function AdminFinanceSection() {
     );
   }, []);
 
+  const filteredSales = useMemo(
+    () =>
+      sales.filter((sale) => {
+        if (saleVisibilityFilter === "all") {
+          return true;
+        }
+
+        return saleVisibilityFilter === "test" ? sale.isTest : !sale.isTest;
+      }),
+    [saleVisibilityFilter, sales]
+  );
+
   const selectedOperation = useMemo(
-    () => sales.find((operation) => operation.id === selectedOperationId) ?? sales[0] ?? null,
-    [sales, selectedOperationId]
+    () => filteredSales.find((operation) => operation.id === selectedOperationId) ?? filteredSales[0] ?? null,
+    [filteredSales, selectedOperationId]
   );
 
   useEffect(() => {
@@ -109,7 +125,7 @@ export function AdminFinanceSection() {
 
   const calendarEntries = useMemo<CalendarPaymentEntry[]>(
     () =>
-      sales.flatMap((sale) =>
+      filteredSales.flatMap((sale) =>
         (installmentsBySaleId[sale.id] ?? [])
           .map((installment) => ({
             id: installment.id,
@@ -124,11 +140,11 @@ export function AdminFinanceSection() {
           }))
           .filter((entry) => entry.status !== "paid")
       ),
-    [installmentsBySaleId, sales]
+    [filteredSales, installmentsBySaleId]
   );
   const financeData = useMemo(
-    () => buildFinanceData(sales, installmentsBySaleId),
-    [installmentsBySaleId, sales]
+    () => buildFinanceData(filteredSales, installmentsBySaleId),
+    [filteredSales, installmentsBySaleId]
   );
   const nextDueInstallment = useMemo(
     () => resolveNextDueInstallment(selectedInstallments),
@@ -167,6 +183,34 @@ export function AdminFinanceSection() {
     setIsHistoryExpanded(false);
   }, [selectedOperation?.id]);
 
+  async function handleDeleteTestSale(operation: SaleOperationRecord) {
+    if (!operation.isTest || deletingSaleId) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Vas a eliminar la operación de prueba de ${operation.clientName} para ${operation.lotLabel}.`
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingSaleId(operation.id);
+
+    try {
+      await deleteTestSaleOperation(PROJECT_SLUG, operation.id, user?.email ?? null);
+      if (selectedOperationId === operation.id) {
+        setSelectedOperationId(null);
+      }
+    } catch (nextError) {
+      console.error("[AdminFinanceSection] Error eliminando venta de prueba:", nextError);
+      setError(nextError instanceof Error ? nextError.message : "No se pudo eliminar la venta de prueba.");
+    } finally {
+      setDeletingSaleId(null);
+    }
+  }
+
   function openClientProfile(clientId: string) {
     setSelectedClientId(clientId);
     setClientSearch("");
@@ -194,6 +238,24 @@ export function AdminFinanceSection() {
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
             Base operativa para registrar ventas, clientes, pagos, vencimientos y observaciones por lote.
           </p>
+
+          <div className="mt-4 inline-grid grid-cols-3 gap-1 rounded-full border border-stone-200 bg-white/88 p-1">
+            <FilterTab
+              active={saleVisibilityFilter === "real"}
+              label="Reales"
+              onClick={() => setSaleVisibilityFilter("real")}
+            />
+            <FilterTab
+              active={saleVisibilityFilter === "test"}
+              label="Prueba"
+              onClick={() => setSaleVisibilityFilter("test")}
+            />
+            <FilterTab
+              active={saleVisibilityFilter === "all"}
+              label="Todas"
+              onClick={() => setSaleVisibilityFilter("all")}
+            />
+          </div>
         </div>
 
         <div className="relative w-full max-w-md">
@@ -268,7 +330,11 @@ export function AdminFinanceSection() {
             <p className="py-8 text-sm leading-7 text-rose-700">{error}</p>
           ) : financeData.operations.length === 0 ? (
             <p className="py-8 text-sm leading-7 text-slate-600">
-              Todavia no hay operaciones cargadas. Usa "Nueva venta" para registrar la primera.
+              {saleVisibilityFilter === "test"
+                ? "Todavia no hay operaciones de prueba."
+                : saleVisibilityFilter === "all"
+                  ? "Todavia no hay operaciones cargadas. Usa \"Nueva venta\" para registrar la primera."
+                  : "Todavia no hay operaciones reales cargadas. Usa \"Nueva venta\" para registrar la primera."}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -282,9 +348,16 @@ export function AdminFinanceSection() {
                       <p className="truncate text-sm font-semibold text-[#092930] sm:text-base">{operation.clientName}</p>
                       <p className="mt-1 text-xs text-slate-600 sm:text-sm">{operation.lotLabel}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${getOperationTone(operation)}`}>
-                      {getOperationLabel(operation)}
-                    </span>
+                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                      {operation.isTest ? (
+                        <span className="rounded-full border border-[#dccfbf] bg-[#fbf4ea] px-3 py-1 text-[11px] font-semibold text-[#8a7358]">
+                          Prueba
+                        </span>
+                      ) : null}
+                      <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getOperationTone(operation)}`}>
+                        {getOperationLabel(operation)}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="mt-3 grid gap-2 border-t border-stone-200/70 pt-3 text-xs text-slate-600 sm:grid-cols-3 sm:text-sm">
@@ -315,6 +388,18 @@ export function AdminFinanceSection() {
                     >
                       Registrar cobro
                     </button>
+                    {operation.isTest ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleDeleteTestSale(operation);
+                        }}
+                        disabled={deletingSaleId === operation.id}
+                        className="rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingSaleId === operation.id ? "Eliminando..." : "Eliminar prueba"}
+                      </button>
+                    ) : null}
                   </div>
                 </article>
               ))}
@@ -333,6 +418,11 @@ export function AdminFinanceSection() {
                 </h3>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
                   <span>{selectedOperation.clientName}</span>
+                  {selectedOperation.isTest ? (
+                    <span className="rounded-full border border-[#dccfbf] bg-[#fbf4ea] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a7358]">
+                      Prueba
+                    </span>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => openClientProfile(selectedOperation.clientId)}
@@ -375,13 +465,27 @@ export function AdminFinanceSection() {
               <div className="rounded-[22px] bg-[#f7f1e8] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Plan de pagos</p>
-                  <button
-                    type="button"
-                    onClick={() => setIsRegisteringPayment(true)}
-                    className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
-                  >
-                    Registrar cobro
-                  </button>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsRegisteringPayment(true)}
+                      className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
+                    >
+                      Registrar cobro
+                    </button>
+                    {selectedOperation.isTest ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleDeleteTestSale(selectedOperation);
+                        }}
+                        disabled={deletingSaleId === selectedOperation.id}
+                        className="rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingSaleId === selectedOperation.id ? "Eliminando..." : "Eliminar prueba"}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
                 <p className="mt-3 text-sm leading-7 text-slate-700">
                   {selectedOperation.deliveryPercent !== null && selectedOperation.deliveryPercent !== undefined
@@ -522,6 +626,21 @@ function InfoPill({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-2 truncate text-sm font-semibold text-[#092930]">{value}</p>
     </div>
+  );
+}
+
+function FilterTab({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition",
+        active ? "bg-[#092930] text-white" : "text-slate-600 hover:bg-[#f7f1e8] hover:text-[#092930]"
+      ].join(" ")}
+    >
+      {label}
+    </button>
   );
 }
 
