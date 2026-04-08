@@ -43,7 +43,7 @@ export function LotsProvider({ children }: { children: ReactNode }) {
           setSeedRecommended(true);
         } else {
           const hasCompleteInventory = nextLots.length >= structuredLotsData.length;
-          const mergedLots = hasCompleteInventory ? nextLots : overlayFirestoreLots(nextLots);
+          const mergedLots = reconcileFirestoreLots(nextLots);
 
           setLots(mergedLots);
           setSource(hasCompleteInventory ? "firestore" : "firestore-overlay");
@@ -102,11 +102,11 @@ export function LotsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function overlayFirestoreLots(firestoreLots: LotData[]) {
+function reconcileFirestoreLots(firestoreLots: LotData[]) {
   const firestoreLotsById = new Map(firestoreLots.map((item) => [item.id, item]));
   const mergedStructuredLots = structuredLotsData.map((item) => {
     const firestoreItem = firestoreLotsById.get(item.id);
-    return firestoreItem ? { ...item, ...firestoreItem, id: item.id } : item;
+    return firestoreItem ? mergeLotWithFirestore(item, firestoreItem) : item;
   });
 
   const extraFirestoreLots = firestoreLots.filter(
@@ -114,6 +114,22 @@ function overlayFirestoreLots(firestoreLots: LotData[]) {
   );
 
   return sortLots([...mergedStructuredLots, ...extraFirestoreLots]);
+}
+
+function mergeLotWithFirestore(baseLot: LotData, firestoreLot: LotData): LotData {
+  return {
+    ...baseLot,
+    ...firestoreLot,
+    id: baseLot.id,
+    type: firestoreLot.type ?? baseLot.type,
+    manzana: firestoreLot.manzana ?? baseLot.manzana ?? null,
+    lotNumber: firestoreLot.lotNumber ?? baseLot.lotNumber ?? null,
+    name: firestoreLot.name ?? baseLot.name ?? null,
+    area: firestoreLot.area ?? baseLot.area ?? null,
+    dimensions: firestoreLot.dimensions ?? baseLot.dimensions ?? null,
+    description: firestoreLot.description ?? baseLot.description ?? null,
+    sourcePage: firestoreLot.sourcePage ?? baseLot.sourcePage ?? null
+  };
 }
 
 export function useLots() {

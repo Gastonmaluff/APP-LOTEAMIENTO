@@ -10,7 +10,7 @@ type AdminModule = "inventory" | "finance";
 
 export function AdminDashboardPage() {
   const { user } = useAuth();
-  const { lots, seedRecommended, source } = useLots();
+  const { lots, source } = useLots();
   const [activeModule, setActiveModule] = useState<AdminModule>("inventory");
   const [syncError, setSyncError] = useState<string | null>(null);
   const syncStartedRef = useRef(false);
@@ -27,7 +27,7 @@ export function AdminDashboardPage() {
   }, [lots]);
 
   useEffect(() => {
-    if (!user || !seedRecommended || source === "local-fallback" || syncStartedRef.current) {
+    if (!user || source === "local-fallback" || syncStartedRef.current || lots.length === 0) {
       return;
     }
 
@@ -49,7 +49,7 @@ export function AdminDashboardPage() {
         setSyncError(error instanceof Error ? error.message : "No se pudo sincronizar el inventario.");
         syncStartedRef.current = false;
       });
-  }, [lots, seedRecommended, source, user]);
+  }, [lots, source, user]);
 
   return (
     <div className="space-y-5 sm:space-y-8">
