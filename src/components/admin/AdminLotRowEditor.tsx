@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Link } from "react-router-dom";
-import { ADMIN_LOTES_ROUTE, PROJECT_SLUG } from "../../config/project";
+import { PROJECT_SLUG } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
 import { deleteProjectLotPhoto, uploadProjectLotPhoto, type LotPhotoSlot } from "../../services/lotPhotosRepository";
 import { updateProjectLot } from "../../services/lotsRepository";
@@ -33,19 +32,22 @@ const currencyOptions = [
 
 export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   const { user } = useAuth();
-  const [form, setForm] = useState<LotEditorState>(() => toLotEditorState(item));
+  const initialForm = useMemo(() => toLotEditorState(item), [item]);
+  const [form, setForm] = useState<LotEditorState>(() => initialForm);
   const [isEditing, setIsEditing] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isClosePromptOpen, setIsClosePromptOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingPhotoSlot, setUploadingPhotoSlot] = useState<LotPhotoSlot | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setForm(toLotEditorState(item));
+    setForm(initialForm);
     setMessage(null);
     setError(null);
-  }, [item]);
+    setIsClosePromptOpen(false);
+  }, [initialForm]);
 
   const computedArea = useMemo(() => computeArea(form.width, form.length), [form.length, form.width]);
   const areaLabel = computedArea ? formatAreaNumber(computedArea) : form.areaDisplay || "Sin calcular";
@@ -63,6 +65,21 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
   });
   const statusLabel = getStatusLabel(form.status || null, "lote");
   const statusBadgeClass = getStatusBadgeClass(form.status || null);
+  const hasUnsavedChanges = useMemo(() => !areEditorStatesEqual(form, initialForm), [form, initialForm]);
+
+  useEffect(() => {
+    if (!isEditing || !hasUnsavedChanges) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges, isEditing]);
 
   async function persistFormState(nextForm: LotEditorState, successMessage: string) {
     setSaving(true);
@@ -74,8 +91,10 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
       await updateProjectLot(PROJECT_SLUG, payload, user?.email ?? null);
       setForm(nextForm);
       setMessage(successMessage);
+      return true;
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "No se pudo guardar.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -83,6 +102,37 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
 
   async function handleSave() {
     await persistFormState(form, "Guardado");
+  }
+
+  async function handleSaveAndClose() {
+    const saved = await persistFormState(form, "Guardado");
+    if (saved) {
+      setIsEditing(false);
+      setIsClosePromptOpen(false);
+    }
+  }
+
+  function handleCancelEditing() {
+    setForm(initialForm);
+    setMessage(null);
+    setError(null);
+    setIsEditing(false);
+    setIsClosePromptOpen(false);
+  }
+
+  function handleToggleEditing() {
+    if (!isEditing) {
+      setIsEditing(true);
+      setIsClosePromptOpen(false);
+      return;
+    }
+
+    if (hasUnsavedChanges) {
+      setIsClosePromptOpen(true);
+      return;
+    }
+
+    handleCancelEditing();
   }
 
   async function handlePhotoUpload(slot: LotPhotoSlot, files: FileList | null) {
@@ -175,7 +225,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
             </button>
             <button
               type="button"
-              onClick={() => setIsEditing((current) => !current)}
+              onClick={handleToggleEditing}
               className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
             >
               {isEditing ? "Cerrar" : "Editar"}
@@ -218,7 +268,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
           </button>
           <button
             type="button"
-            onClick={() => setIsEditing((current) => !current)}
+            onClick={handleToggleEditing}
             className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
           >
             {isEditing ? "Cerrar" : "Editar"}
@@ -339,18 +389,19 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
                 type="button"
                 onClick={() => {
                   void handleSave();
-            }}
-            disabled={saving}
-            className="rounded-full bg-[#0f2f35] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
+                }}
+                disabled={saving}
+                className="rounded-full bg-[#0f2f35] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? "Guardando..." : "Guardar"}
               </button>
-              <Link
-                to={`${ADMIN_LOTES_ROUTE}/${item.id}`}
-            className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+              <button
+                type="button"
+                onClick={handleToggleEditing}
+                className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
               >
-                Ficha
-              </Link>
+                Cancelar
+              </button>
             </div>
           </div>
 
@@ -407,6 +458,43 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
               {error ? <span className="rounded-full bg-rose-50 px-3 py-1.5 font-medium text-rose-700">{error}</span> : null}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {isClosePromptOpen ? (
+        <div className="border-t border-stone-200 bg-[#f8f4ec] px-4 py-4">
+          <div className="rounded-[20px] border border-stone-200 bg-white px-4 py-4">
+            <p className="text-sm font-semibold text-[#092930]">Tienes cambios sin guardar.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              ¿Deseas guardarlos antes de cerrar?
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSaveAndClose();
+                }}
+                disabled={saving}
+                className="rounded-full bg-[#0f2f35] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? "Guardando..." : "Guardar y cerrar"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelEditing}
+                className="rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+              >
+                Cerrar sin guardar
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsClosePromptOpen(false)}
+                className="rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+              >
+                Seguir editando
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -569,4 +657,8 @@ function getStatusBadgeClass(status: LotData["status"]) {
   }
 
   return "border-stone-200 bg-stone-100 text-slate-600";
+}
+
+function areEditorStatesEqual(left: LotEditorState, right: LotEditorState) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
