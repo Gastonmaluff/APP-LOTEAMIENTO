@@ -65,12 +65,14 @@ export function AdminClientProfileModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingKind, setUploadingKind] = useState<ClientDocumentKind | null>(null);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [form, setForm] = useState<ClientFormState>(() => buildClientForm(client));
 
   useEffect(() => {
     setForm(buildClientForm(client));
     setEditing(false);
     setError(null);
+    setIsHistoryExpanded(false);
   }, [client]);
 
   useEffect(() => {
@@ -155,6 +157,7 @@ export function AdminClientProfileModal({
         }),
     [clientInstallments, clientSales]
   );
+  const historySummary = useMemo(() => buildHistorySummary(history), [history]);
 
   const nextDueSale = useMemo(
     () => (nextDue ? clientSales.find((sale) => sale.id === nextDue.saleId) ?? null : null),
@@ -479,34 +482,67 @@ export function AdminClientProfileModal({
             </section>
 
             <section className="rounded-[24px] border border-stone-200 bg-white/90 p-4 sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Historial de pagos</p>
-              <div className="mt-4 space-y-3">
-                {history.length === 0 ? (
-                  <p className="rounded-[18px] border border-dashed border-stone-300 bg-stone-50/70 px-4 py-4 text-sm leading-7 text-slate-600">
-                    Todavia no hay cuotas ni pagos registrados para este cliente.
-                  </p>
-                ) : (
-                  history.map((item) => (
-                    <article key={item.id} className="rounded-[18px] border border-stone-200 bg-[#fcfbf8] px-4 py-3">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-[#092930]">
-                            {item.lotLabel} - Cuota {item.number}
-                          </p>
-                          <div className="mt-1 space-y-1 text-xs text-slate-600 sm:text-sm">
-                            <p>Fecha: {item.paidAt ?? item.dueDate}</p>
-                            <p>Monto: {formatPrice(item.amount, item.currency)}</p>
-                            <p>Pago real: {item.paidAt ?? "Pendiente"}</p>
+              <button
+                type="button"
+                onClick={() => setIsHistoryExpanded((currentValue) => !currentValue)}
+                className="flex w-full items-start justify-between gap-4 text-left"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Historial de pagos</p>
+                  {history.length === 0 ? (
+                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                      Todavia no hay cuotas ni pagos registrados para este cliente.
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-sm leading-7 text-slate-700">
+                      {historySummary.total} cuotas · {historySummary.paid} pagadas · {historySummary.pending} pendientes · {historySummary.overdue} vencidas
+                    </p>
+                  )}
+                </div>
+
+                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-stone-300 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0f2f35] transition hover:border-[#8fa88b]">
+                  {isHistoryExpanded ? "Ocultar historial" : "Ver historial"}
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 20 20"
+                    className={`h-4 w-4 transition-transform duration-300 ${isHistoryExpanded ? "rotate-180" : ""}`}
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </button>
+
+              {isHistoryExpanded ? (
+                <div className="mt-4 space-y-3">
+                  {history.length === 0 ? (
+                    <p className="rounded-[18px] border border-dashed border-stone-300 bg-stone-50/70 px-4 py-4 text-sm leading-7 text-slate-600">
+                      Todavia no hay cuotas ni pagos registrados para este cliente.
+                    </p>
+                  ) : (
+                    history.map((item) => (
+                      <article key={item.id} className="rounded-[18px] border border-stone-200 bg-[#fcfbf8] px-4 py-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[#092930]">
+                              {item.lotLabel} - Cuota {item.number}
+                            </p>
+                            <div className="mt-1 space-y-1 text-xs text-slate-600 sm:text-sm">
+                              <p>Fecha: {item.paidAt ?? item.dueDate}</p>
+                              <p>Monto: {formatPrice(item.amount, item.currency)}</p>
+                              <p>Pago real: {item.paidAt ?? "Pendiente"}</p>
+                            </div>
                           </div>
+                          <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${getInstallmentTone(item.effectiveStatus)}`}>
+                            {getInstallmentLabel(item.effectiveStatus)}
+                          </span>
                         </div>
-                        <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${getInstallmentTone(item.effectiveStatus)}`}>
-                          {getInstallmentLabel(item.effectiveStatus)}
-                        </span>
-                      </div>
-                    </article>
-                  ))
-                )}
-              </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              ) : null}
             </section>
           </div>
         </div>
@@ -618,6 +654,28 @@ function buildClientFinancialSummary(
     overdueCount: pendingInstallments.filter((item) => getEffectiveInstallmentStatus(item) === "overdue").length,
     currency: referenceCurrency
   };
+}
+
+function buildHistorySummary(
+  history: Array<{
+    effectiveStatus: InstallmentRecord["status"];
+  }>
+) {
+  return history.reduce(
+    (summary, item) => {
+      if (item.effectiveStatus === "paid") {
+        summary.paid += 1;
+      } else if (item.effectiveStatus === "overdue") {
+        summary.overdue += 1;
+      } else {
+        summary.pending += 1;
+      }
+
+      summary.total += 1;
+      return summary;
+    },
+    { total: 0, paid: 0, pending: 0, overdue: 0 }
+  );
 }
 
 function Field({ children, label }: { children: ReactNode; label: string }) {
