@@ -130,16 +130,26 @@ export function ProjectPublicPage() {
             </a>
           </nav>
 
-          <a
-            href={generalWhatsAppHref}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#1f3d2b] px-5 py-3 text-[11px] font-semibold text-white transition hover:brightness-110 sm:px-6"
-          >
-            <WhatsAppMark className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Consultar por WhatsApp</span>
-            <span className="sm:hidden">WhatsApp</span>
-          </a>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <a
+              href={`${import.meta.env.BASE_URL}admin/login`}
+              aria-label="Abrir portal admin"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-stone-200 bg-white text-[#092930] transition hover:border-[#1f3d2b]/30 hover:bg-[#f6f3eb] hover:text-[#1f3d2b]"
+            >
+              <PortalMark className="h-[18px] w-[18px] shrink-0" />
+            </a>
+
+            <a
+              href={generalWhatsAppHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#1f3d2b] px-5 py-3 text-[11px] font-semibold text-white transition hover:brightness-110 sm:px-6"
+            >
+              <WhatsAppMark className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Consultar por WhatsApp</span>
+              <span className="sm:hidden">WhatsApp</span>
+            </a>
+          </div>
         </div>
       </header>
 
@@ -535,6 +545,25 @@ function WhatsAppMark({ className }: { className?: string }) {
         d="M8.85 9.36c.16-.35.33-.36.56-.37h.47c.14 0 .37.05.56.46.18.41.62 1.43.67 1.54.05.1.08.23.02.36-.05.13-.08.21-.16.32-.08.11-.17.24-.24.31-.08.08-.17.18-.07.36.1.18.46.75.98 1.22.68.6 1.25.79 1.43.88.18.08.28.07.39-.04.11-.11.45-.52.56-.69.12-.18.24-.15.4-.09.16.06 1.04.49 1.21.58.17.08.28.12.32.19.04.07.04.41-.1.8-.13.39-.76.75-1.05.8-.29.05-.66.08-1.06-.05-.24-.08-.55-.18-.95-.35a5.96 5.96 0 0 1-2.07-1.28 6.98 6.98 0 0 1-1.44-1.9c-.15-.26-.4-.74-.4-1.41 0-.67.35-1 .48-1.14Z"
         fill="currentColor"
       />
+    </svg>
+  );
+}
+
+function PortalMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <rect
+        x="3.5"
+        y="4.5"
+        width="17"
+        height="15"
+        rx="3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path d="M8 9.25h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M8 14.75h4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <circle cx="16.75" cy="14.75" r="1.25" fill="currentColor" />
     </svg>
   );
 }
