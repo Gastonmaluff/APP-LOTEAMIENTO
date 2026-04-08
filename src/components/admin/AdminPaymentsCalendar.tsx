@@ -327,6 +327,10 @@ function formatActiveDate(isoDate: string) {
 }
 
 function getStatusLabel(status: InstallmentStatus) {
+  if (status === "cancelled") {
+    return "Anulada";
+  }
+
   if (status === "paid") {
     return "Pagada";
   }
@@ -339,6 +343,10 @@ function getStatusLabel(status: InstallmentStatus) {
 }
 
 function getStatusTone(status: InstallmentStatus) {
+  if (status === "cancelled") {
+    return "border-slate-200 bg-slate-100 text-slate-600";
+  }
+
   if (status === "overdue") {
     return "border-[#d6c2b6] bg-[#f3e6df] text-[#8a5b48]";
   }
@@ -351,6 +359,10 @@ function getStatusTone(status: InstallmentStatus) {
 }
 
 function getStatusFillTone(status: InstallmentStatus) {
+  if (status === "cancelled") {
+    return "bg-slate-300";
+  }
+
   if (status === "overdue") {
     return "bg-[#b46d51]";
   }
@@ -369,4 +381,3 @@ function capitalize(value: string) {
 
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
-

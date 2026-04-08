@@ -1,5 +1,5 @@
 export type OperationType = "reserve" | "sale";
-export type InstallmentStatus = "pending" | "paid" | "overdue";
+export type InstallmentStatus = "pending" | "paid" | "overdue" | "cancelled";
 
 export type ClientRecord = {
   id: string;
@@ -39,7 +39,7 @@ export type SaleOperationRecord = {
   lotId: string;
   lotLabel: string;
   operationType: OperationType;
-  status: "active" | "completed" | "cancelled";
+  status: "draft" | "active" | "completed" | "cancelled";
   lotStatus: "reserved" | "sold";
   currency: "USD" | "PYG" | null;
   price: number | null;
@@ -52,6 +52,8 @@ export type SaleOperationRecord = {
   paymentStatus: InstallmentStatus | null;
   notes: string | null;
   contractUrl: string | null;
+  cancellationReason?: string | null;
+  cancelledAtMs?: number | null;
   createdAtMs: number | null;
 };
 

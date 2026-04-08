@@ -21,8 +21,9 @@ type PaymentFormState = {
 
 export function AdminRegisterPaymentModal({ installments, onClose, sale }: AdminRegisterPaymentModalProps) {
   const { user } = useAuth();
+  const isCancelledSale = sale.status === "cancelled";
   const pendingInstallments = useMemo(
-    () => installments.filter((installment) => installment.status !== "paid"),
+    () => installments.filter((installment) => installment.status !== "paid" && installment.status !== "cancelled"),
     [installments]
   );
   const initialInstallment = pendingInstallments[0] ?? installments[0] ?? null;
@@ -43,6 +44,11 @@ export function AdminRegisterPaymentModal({ installments, onClose, sale }: Admin
   );
 
   async function handleSubmit() {
+    if (isCancelledSale) {
+      setError("La operacion esta anulada y no admite nuevos cobros.");
+      return;
+    }
+
     if (!selectedInstallment) {
       setError("Selecciona una cuota.");
       return;
@@ -175,6 +181,12 @@ export function AdminRegisterPaymentModal({ installments, onClose, sale }: Admin
           </div>
         ) : null}
 
+        {isCancelledSale ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+            Esta operacion fue anulada. Si necesitas cobrar algo, primero revisa la operacion correspondiente.
+          </div>
+        ) : null}
+
         {error ? (
           <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">{error}</div>
         ) : null}
@@ -185,7 +197,7 @@ export function AdminRegisterPaymentModal({ installments, onClose, sale }: Admin
             onClick={() => {
               void handleSubmit();
             }}
-            disabled={saving}
+            disabled={saving || isCancelledSale || !selectedInstallment}
             className="rounded-full bg-[#0f2f35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Registrando..." : "Registrar cobro"}

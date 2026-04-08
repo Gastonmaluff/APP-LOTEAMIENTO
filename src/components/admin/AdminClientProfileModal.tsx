@@ -455,6 +455,7 @@ export function AdminClientProfileModal({
                               {getOperationLabel(sale)} - {formatPrice(sale.price, sale.currency)}
                             </p>
                             <p>Estado del lote: {sale.lotStatus === "reserved" ? "Reservado" : "Vendido"}</p>
+                            {sale.status === "cancelled" ? <p>Operacion anulada</p> : null}
                           </div>
                         </div>
 
@@ -469,6 +470,7 @@ export function AdminClientProfileModal({
                           <button
                             type="button"
                             onClick={() => onRegisterPayment(sale.id)}
+                            disabled={sale.status === "cancelled"}
                             className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
                           >
                             Registrar cobro
@@ -496,6 +498,7 @@ export function AdminClientProfileModal({
                   ) : (
                     <p className="mt-3 text-sm leading-7 text-slate-700">
                       {historySummary.total} cuotas · {historySummary.paid} pagadas · {historySummary.pending} pendientes · {historySummary.overdue} vencidas
+                      {historySummary.cancelled > 0 ? ` · ${historySummary.cancelled} anuladas` : ""}
                     </p>
                   )}
                 </div>
@@ -643,7 +646,10 @@ function buildClientFinancialSummary(
   sales: SaleOperationRecord[],
   installments: InstallmentRecord[]
 ) {
-  const pendingInstallments = installments.filter((item) => getEffectiveInstallmentStatus(item) !== "paid");
+  const pendingInstallments = installments.filter((item) => {
+    const effectiveStatus = getEffectiveInstallmentStatus(item);
+    return effectiveStatus !== "paid" && effectiveStatus !== "cancelled";
+  });
   const paidInstallments = installments.filter((item) => getEffectiveInstallmentStatus(item) === "paid");
   const referenceCurrency = sales[0]?.currency ?? "PYG";
 
@@ -665,6 +671,8 @@ function buildHistorySummary(
     (summary, item) => {
       if (item.effectiveStatus === "paid") {
         summary.paid += 1;
+      } else if (item.effectiveStatus === "cancelled") {
+        summary.cancelled += 1;
       } else if (item.effectiveStatus === "overdue") {
         summary.overdue += 1;
       } else {
@@ -674,7 +682,7 @@ function buildHistorySummary(
       summary.total += 1;
       return summary;
     },
-    { total: 0, paid: 0, pending: 0, overdue: 0 }
+    { total: 0, paid: 0, pending: 0, overdue: 0, cancelled: 0 }
   );
 }
 
@@ -723,6 +731,10 @@ function getOperationLabel(sale: SaleOperationRecord) {
 }
 
 function getInstallmentLabel(status: InstallmentRecord["status"]) {
+  if (status === "cancelled") {
+    return "Anulada";
+  }
+
   if (status === "paid") {
     return "Pagada";
   }
@@ -735,6 +747,10 @@ function getInstallmentLabel(status: InstallmentRecord["status"]) {
 }
 
 function getInstallmentTone(status: InstallmentRecord["status"]) {
+  if (status === "cancelled") {
+    return "border-slate-200 bg-slate-100 text-slate-600";
+  }
+
   if (status === "paid") {
     return "border-[#cedcc8] bg-[#eff5ec] text-[#567052]";
   }

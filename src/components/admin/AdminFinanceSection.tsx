@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { PROJECT_SLUG } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
-import { deleteTestSaleOperation, subscribeToProjectClients, subscribeToProjectSales, subscribeToSaleInstallments, getEffectiveInstallmentStatus, resolveNextDueInstallment } from "../../services/financeRepository";
+import {
+  cancelSaleOperation,
+  deleteTestSaleOperation,
+  getEffectiveInstallmentStatus,
+  resolveNextDueInstallment,
+  subscribeToProjectClients,
+  subscribeToProjectSales,
+  subscribeToSaleInstallments
+} from "../../services/financeRepository";
 import type { ClientRecord, InstallmentRecord, InstallmentStatus, SaleOperationRecord } from "../../types/finance";
 import { formatPrice } from "../../utils/mapUtils";
 import { useLots } from "../../contexts/LotsContext";
@@ -25,8 +33,10 @@ export function AdminFinanceSection() {
   const [installmentsBySaleId, setInstallmentsBySaleId] = useState<Record<string, InstallmentRecord[]>>({});
   const [clientSearch, setClientSearch] = useState("");
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [saleVisibilityFilter, setSaleVisibilityFilter] = useState<"real" | "test" | "all">("real");
+  const [saleVisibilityFilter, setSaleVisibilityFilter] = useState<"active" | "cancelled" | "test" | "all">("active");
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  const [cancellingSaleId, setCancellingSaleId] = useState<string | null>(null);
+  const [cleaningTests, setCleaningTests] = useState(false);
 
   useEffect(() => {
     return subscribeToProjectSales(
@@ -59,11 +69,17 @@ export function AdminFinanceSection() {
   const filteredSales = useMemo(
     () =>
       sales.filter((sale) => {
-        if (saleVisibilityFilter === "all") {
-          return true;
+        switch (saleVisibilityFilter) {
+          case "active":
+            return !sale.isTest && sale.status !== "cancelled";
+          case "cancelled":
+            return sale.status === "cancelled";
+          case "test":
+            return sale.isTest;
+          case "all":
+          default:
+            return true;
         }
-
-        return saleVisibilityFilter === "test" ? sale.isTest : !sale.isTest;
       }),
     [saleVisibilityFilter, sales]
   );
@@ -138,7 +154,7 @@ export function AdminFinanceSection() {
             status: getEffectiveInstallmentStatus(installment),
             currency: sale.currency
           }))
-          .filter((entry) => entry.status !== "paid")
+          .filter((entry) => entry.status !== "paid" && entry.status !== "cancelled")
       ),
     [filteredSales, installmentsBySaleId]
   );
@@ -178,6 +194,7 @@ export function AdminFinanceSection() {
     () => clients.find((client) => client.id === selectedClientId) ?? null,
     [clients, selectedClientId]
   );
+  const testSales = useMemo(() => sales.filter((sale) => sale.isTest), [sales]);
 
   useEffect(() => {
     setIsHistoryExpanded(false);
@@ -199,7 +216,7 @@ export function AdminFinanceSection() {
     setDeletingSaleId(operation.id);
 
     try {
-      await deleteTestSaleOperation(PROJECT_SLUG, operation.id, user?.email ?? null);
+      await deleteTestSaleOperation(PROJECT_SLUG, operation, user?.email ?? null);
       if (selectedOperationId === operation.id) {
         setSelectedOperationId(null);
       }
@@ -208,6 +225,76 @@ export function AdminFinanceSection() {
       setError(nextError instanceof Error ? nextError.message : "No se pudo eliminar la venta de prueba.");
     } finally {
       setDeletingSaleId(null);
+    }
+  }
+
+  async function handleCancelSale(operation: SaleOperationRecord) {
+    if (operation.isTest || operation.status === "cancelled" || cancellingSaleId) {
+      return;
+    }
+
+    const shouldCancel = window.confirm(
+      "¿Estas seguro de anular esta venta?\nEl lote volvera a disponible y la operacion quedara marcada como anulada."
+    );
+
+    if (!shouldCancel) {
+      return;
+    }
+
+    const reason =
+      window.prompt(
+        "Motivo de anulacion:\nerror de carga / cliente desistio / operacion de prueba / duplicado / otro",
+        "cliente desistio"
+      ) ?? "";
+
+    if (!reason.trim()) {
+      return;
+    }
+
+    setCancellingSaleId(operation.id);
+
+    try {
+      await cancelSaleOperation(
+        PROJECT_SLUG,
+        operation,
+        installmentsBySaleId[operation.id] ?? [],
+        reason,
+        user?.email ?? null
+      );
+    } catch (nextError) {
+      console.error("[AdminFinanceSection] Error anulando venta:", nextError);
+      setError(nextError instanceof Error ? nextError.message : "No se pudo anular la operacion.");
+    } finally {
+      setCancellingSaleId(null);
+    }
+  }
+
+  async function handleClearTestSales() {
+    if (testSales.length === 0 || cleaningTests) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Vas a eliminar ${testSales.length} operaciones de prueba. Esta accion es permanente.`
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setCleaningTests(true);
+    setError(null);
+
+    try {
+      for (const sale of testSales) {
+        await deleteTestSaleOperation(PROJECT_SLUG, sale, user?.email ?? null);
+      }
+      setSelectedOperationId(null);
+    } catch (nextError) {
+      console.error("[AdminFinanceSection] Error limpiando operaciones de prueba:", nextError);
+      setError(nextError instanceof Error ? nextError.message : "No se pudieron limpiar las operaciones de prueba.");
+    } finally {
+      setCleaningTests(false);
     }
   }
 
@@ -239,11 +326,16 @@ export function AdminFinanceSection() {
             Base operativa para registrar ventas, clientes, pagos, vencimientos y observaciones por lote.
           </p>
 
-          <div className="mt-4 inline-grid grid-cols-3 gap-1 rounded-full border border-stone-200 bg-white/88 p-1">
+          <div className="mt-4 inline-grid grid-cols-2 gap-1 rounded-[22px] border border-stone-200 bg-white/88 p-1 sm:grid-cols-4">
             <FilterTab
-              active={saleVisibilityFilter === "real"}
-              label="Reales"
-              onClick={() => setSaleVisibilityFilter("real")}
+              active={saleVisibilityFilter === "active"}
+              label="Activas"
+              onClick={() => setSaleVisibilityFilter("active")}
+            />
+            <FilterTab
+              active={saleVisibilityFilter === "cancelled"}
+              label="Anuladas"
+              onClick={() => setSaleVisibilityFilter("cancelled")}
             />
             <FilterTab
               active={saleVisibilityFilter === "test"}
@@ -313,15 +405,29 @@ export function AdminFinanceSection() {
           <div className="flex items-end justify-between gap-4 border-b border-stone-200 pb-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#715b3b]">Operaciones</p>
-              <h3 className="font-display mt-2 text-[1.8rem] text-[#092930]">Ventas y reservas activas</h3>
+              <h3 className="font-display mt-2 text-[1.8rem] text-[#092930]">Ventas y reservas</h3>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsCreatingSale(true)}
-              className="rounded-full bg-[#092930] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43]"
-            >
-              Nueva venta
-            </button>
+            <div className="flex flex-wrap justify-end gap-2">
+              {testSales.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleClearTestSales();
+                  }}
+                  disabled={cleaningTests}
+                  className="rounded-full border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {cleaningTests ? "Limpiando pruebas..." : "Limpiar pruebas"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setIsCreatingSale(true)}
+                className="rounded-full bg-[#092930] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43]"
+              >
+                Nueva venta
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -332,9 +438,11 @@ export function AdminFinanceSection() {
             <p className="py-8 text-sm leading-7 text-slate-600">
               {saleVisibilityFilter === "test"
                 ? "Todavia no hay operaciones de prueba."
+                : saleVisibilityFilter === "cancelled"
+                  ? "Todavia no hay operaciones anuladas."
                 : saleVisibilityFilter === "all"
                   ? "Todavia no hay operaciones cargadas. Usa \"Nueva venta\" para registrar la primera."
-                  : "Todavia no hay operaciones reales cargadas. Usa \"Nueva venta\" para registrar la primera."}
+                  : "Todavia no hay operaciones activas cargadas. Usa \"Nueva venta\" para registrar la primera."}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -354,6 +462,11 @@ export function AdminFinanceSection() {
                           Prueba
                         </span>
                       ) : null}
+                      {operation.status === "cancelled" ? (
+                        <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                          Anulada
+                        </span>
+                      ) : null}
                       <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getOperationTone(operation)}`}>
                         {getOperationLabel(operation)}
                       </span>
@@ -362,8 +475,12 @@ export function AdminFinanceSection() {
 
                   <div className="mt-3 grid gap-2 border-t border-stone-200/70 pt-3 text-xs text-slate-600 sm:grid-cols-3 sm:text-sm">
                     <p>Proximo vencimiento: {operation.nextDueDate ?? "Sin fecha"}</p>
-                    <p>Monto cuota: {formatPrice(operation.nextPaymentAmount, operation.currency)}</p>
-                    <p>Estado de pago: {getPaymentLabel(operation.paymentStatus)}</p>
+                    <p>
+                      {operation.status === "cancelled"
+                        ? `Motivo: ${operation.cancellationReason ?? "Sin motivo"}`
+                        : `Monto cuota: ${formatPrice(operation.nextPaymentAmount, operation.currency)}`}
+                    </p>
+                    <p>Estado de pago: {operation.status === "cancelled" ? "Anulada" : getPaymentLabel(operation.paymentStatus)}</p>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -384,17 +501,30 @@ export function AdminFinanceSection() {
                     <button
                       type="button"
                       onClick={() => openRegisterPayment(operation.id)}
+                      disabled={operation.status === "cancelled"}
                       className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
                     >
                       Registrar cobro
                     </button>
+                    {!operation.isTest && operation.status !== "cancelled" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleCancelSale(operation);
+                        }}
+                        disabled={cancellingSaleId === operation.id}
+                        className="rounded-full border border-amber-200 px-4 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {cancellingSaleId === operation.id ? "Anulando..." : "Anular venta"}
+                      </button>
+                    ) : null}
                     {operation.isTest ? (
                       <button
                         type="button"
                         onClick={() => {
                           void handleDeleteTestSale(operation);
                         }}
-                        disabled={deletingSaleId === operation.id}
+                        disabled={deletingSaleId === operation.id || cleaningTests}
                         className="rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {deletingSaleId === operation.id ? "Eliminando..." : "Eliminar prueba"}
@@ -423,6 +553,11 @@ export function AdminFinanceSection() {
                       Prueba
                     </span>
                   ) : null}
+                  {selectedOperation.status === "cancelled" ? (
+                    <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                      Anulada
+                    </span>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => openClientProfile(selectedOperation.clientId)}
@@ -437,7 +572,10 @@ export function AdminFinanceSection() {
                 <InfoPill label="Estado" value={getOperationLabel(selectedOperation)} />
                 <InfoPill label="Monto" value={formatPrice(selectedOperation.price, selectedOperation.currency)} />
                 <InfoPill label="Proximo vencimiento" value={selectedOperation.nextDueDate ?? "Sin fecha"} />
-                <InfoPill label="Estado pago" value={getPaymentLabel(selectedOperation.paymentStatus)} />
+                <InfoPill
+                  label="Estado pago"
+                  value={selectedOperation.status === "cancelled" ? "Anulada" : getPaymentLabel(selectedOperation.paymentStatus)}
+                />
               </div>
 
               <div className="rounded-[24px] border border-stone-200 bg-[linear-gradient(180deg,#f7f2e9_0%,#f1ece3_100%)] p-5">
@@ -469,17 +607,30 @@ export function AdminFinanceSection() {
                     <button
                       type="button"
                       onClick={() => setIsRegisteringPayment(true)}
+                      disabled={selectedOperation.status === "cancelled"}
                       className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
                     >
                       Registrar cobro
                     </button>
+                    {!selectedOperation.isTest && selectedOperation.status !== "cancelled" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleCancelSale(selectedOperation);
+                        }}
+                        disabled={cancellingSaleId === selectedOperation.id}
+                        className="rounded-full border border-amber-200 px-4 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {cancellingSaleId === selectedOperation.id ? "Anulando..." : "Anular venta"}
+                      </button>
+                    ) : null}
                     {selectedOperation.isTest ? (
                       <button
                         type="button"
                         onClick={() => {
                           void handleDeleteTestSale(selectedOperation);
                         }}
-                        disabled={deletingSaleId === selectedOperation.id}
+                        disabled={deletingSaleId === selectedOperation.id || cleaningTests}
                         className="rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {deletingSaleId === selectedOperation.id ? "Eliminando..." : "Eliminar prueba"}
@@ -497,6 +648,11 @@ export function AdminFinanceSection() {
                   Fecha de inicio: {selectedOperation.startDate ?? "Sin fecha"} | Primer vencimiento:{" "}
                   {selectedOperation.firstDueDate ?? "Sin fecha"}
                 </p>
+                {selectedOperation.status === "cancelled" ? (
+                  <p className="mt-2 text-xs leading-6 text-slate-500">
+                    Motivo de anulacion: {selectedOperation.cancellationReason ?? "Sin motivo"}
+                  </p>
+                ) : null}
               </div>
 
               <div className="rounded-[22px] border border-stone-200 p-4">
@@ -517,6 +673,7 @@ export function AdminFinanceSection() {
                       <p className="mt-3 text-sm leading-7 text-slate-700">
                         {installmentSummary.total} cuotas · {installmentSummary.paid} pagadas ·{" "}
                         {installmentSummary.pending} pendientes · {installmentSummary.overdue} vencidas
+                        {installmentSummary.cancelled > 0 ? ` · ${installmentSummary.cancelled} anuladas` : ""}
                       </p>
                     )}
                   </div>
@@ -652,7 +809,10 @@ function buildFinanceData(
   const weekLimit = addDaysToIsoDate(today, 7);
   const monthKey = today.slice(0, 7);
   const allInstallments = sales.flatMap((sale) => installmentsBySaleId[sale.id] ?? []);
-  const nonPaidInstallments = allInstallments.filter((installment) => getEffectiveInstallmentStatus(installment) !== "paid");
+  const nonPaidInstallments = allInstallments.filter((installment) => {
+    const effectiveStatus = getEffectiveInstallmentStatus(installment);
+    return effectiveStatus !== "paid" && effectiveStatus !== "cancelled";
+  });
   const dueTodayCount = nonPaidInstallments.filter((installment) => installment.dueDate === today).length;
   const dueThisWeekCount = nonPaidInstallments.filter(
     (installment) => installment.dueDate >= today && installment.dueDate <= weekLimit
@@ -680,12 +840,15 @@ function buildFinanceData(
 
   return {
     metrics: [
-      { label: "Ventas activas", value: String(sales.length) },
+      { label: "Ventas activas", value: String(sales.filter((sale) => sale.status !== "cancelled").length) },
       { label: "Vencen hoy", value: String(dueTodayCount) },
       { label: "Vencen esta semana", value: String(dueThisWeekCount) },
       { label: "En mora", value: String(overdueCount) },
       { label: "Cobros del mes", value: formatPrice(collectedThisMonth, sales[0]?.currency ?? "PYG") },
-      { label: "Reservas pendientes", value: String(sales.filter((sale) => sale.operationType === "reserve").length) }
+      {
+        label: "Reservas pendientes",
+        value: String(sales.filter((sale) => sale.operationType === "reserve" && sale.status !== "cancelled").length)
+      }
     ],
     operations: sortedOperations
   };
@@ -717,6 +880,8 @@ function buildInstallmentSummary(installments: InstallmentRecord[]) {
 
       if (effectiveStatus === "paid") {
         summary.paid += 1;
+      } else if (effectiveStatus === "cancelled") {
+        summary.cancelled += 1;
       } else if (effectiveStatus === "overdue") {
         summary.overdue += 1;
       } else {
@@ -726,7 +891,7 @@ function buildInstallmentSummary(installments: InstallmentRecord[]) {
       summary.total += 1;
       return summary;
     },
-    { total: 0, paid: 0, pending: 0, overdue: 0 }
+    { total: 0, paid: 0, pending: 0, overdue: 0, cancelled: 0 }
   );
 }
 
@@ -735,6 +900,10 @@ function getOperationLabel(operation: SaleOperationRecord) {
 }
 
 function getPaymentLabel(status: SaleOperationRecord["paymentStatus"]) {
+  if (status === "cancelled") {
+    return "Anulada";
+  }
+
   if (status === "paid") {
     return "Pagada";
   }
@@ -751,6 +920,10 @@ function getPaymentLabel(status: SaleOperationRecord["paymentStatus"]) {
 }
 
 function getInstallmentStatusLabel(status: InstallmentStatus) {
+  if (status === "cancelled") {
+    return "Anulada";
+  }
+
   if (status === "paid") {
     return "Pagada";
   }
@@ -763,12 +936,20 @@ function getInstallmentStatusLabel(status: InstallmentStatus) {
 }
 
 function getOperationTone(operation: SaleOperationRecord) {
+  if (operation.status === "cancelled") {
+    return "border-slate-200 bg-slate-100 text-slate-600";
+  }
+
   return operation.operationType === "reserve"
     ? "border-[#dccfbf] bg-[#f6f1ea] text-[#7e6f5d]"
     : "border-[#cedcc8] bg-[#eff5ec] text-[#567052]";
 }
 
 function getInstallmentTone(status: InstallmentStatus) {
+  if (status === "cancelled") {
+    return "border-slate-200 bg-slate-100 text-slate-600";
+  }
+
   if (status === "paid") {
     return "border-[#cedcc8] bg-[#eff5ec] text-[#567052]";
   }
@@ -781,6 +962,10 @@ function getInstallmentTone(status: InstallmentStatus) {
 }
 
 function getOperationPaymentPriority(status: SaleOperationRecord["paymentStatus"]) {
+  if (status === "cancelled") {
+    return 3;
+  }
+
   if (status === "overdue") {
     return 0;
   }
@@ -793,7 +978,7 @@ function getOperationPaymentPriority(status: SaleOperationRecord["paymentStatus"
     return 2;
   }
 
-  return 3;
+  return 4;
 }
 
 function addDaysToIsoDate(baseDate: string, days: number) {

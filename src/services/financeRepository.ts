@@ -11,6 +11,7 @@ import {
   writeBatch
 } from "firebase/firestore";
 import { PROJECT_NAME, PROJECT_SLUG, PUBLIC_PROJECT_ROUTE } from "../config/project";
+import { structuredLotsDataById } from "../data/structuredLotsData";
 import { db } from "../firebase/client";
 import type {
   ClientDocumentKind,
@@ -200,6 +201,8 @@ export async function createProjectSale(
       paymentStatus: nextPaymentAmount ? "pending" : null,
       notes: normalizeBlank(input.commercial.notes),
       contractUrl: input.commercial.contractUrl ?? null,
+      cancellationReason: null,
+      cancelledAt: null,
       createdAt: serverTimestamp(),
       createdBy: userEmail ?? null,
       updatedAt: serverTimestamp(),
@@ -289,6 +292,10 @@ export async function registerSalePayment(
     throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
   }
 
+  if (sale.status === "cancelled") {
+    throw new Error("La operacion esta anulada y no admite nuevos cobros.");
+  }
+
   const projectRef = doc(db, "projects", PROJECT_SLUG);
   const saleRef = doc(projectRef, "sales", sale.id);
   const installmentRef = doc(saleRef, "installments", input.installmentId);
@@ -323,7 +330,10 @@ export async function registerSalePayment(
   );
 
   const nextDue = resolveNextDueInstallment(nextInstallments);
-  const hasPendingInstallments = nextInstallments.some((installment) => getEffectiveInstallmentStatus(installment) !== "paid");
+  const hasPendingInstallments = nextInstallments.some((installment) => {
+    const effectiveStatus = getEffectiveInstallmentStatus(installment);
+    return effectiveStatus !== "paid" && effectiveStatus !== "cancelled";
+  });
 
   batch.set(
     saleRef,
@@ -594,13 +604,15 @@ function normalizeSale(id: string, rawData: FirestoreRecord): SaleOperationRecor
     paymentStatus: normalizePaymentStatus(rawData.paymentStatus),
     notes: normalizeString(rawData.notes),
     contractUrl: normalizeString(rawData.contractUrl),
+    cancellationReason: normalizeString(rawData.cancellationReason),
+    cancelledAtMs: normalizeTimestamp(rawData.cancelledAt),
     createdAtMs: normalizeTimestamp(rawData.createdAt)
   };
 }
 
 export async function deleteTestSaleOperation(
   projectSlug: string,
-  saleId: string,
+  sale: SaleOperationRecord,
   userEmail?: string | null
 ) {
   if (!db) {
@@ -608,8 +620,10 @@ export async function deleteTestSaleOperation(
   }
 
   const projectRef = doc(db, "projects", projectSlug);
-  const saleRef = doc(projectRef, "sales", saleId);
+  const saleRef = doc(projectRef, "sales", sale.id);
   const installmentsRef = collection(saleRef, "installments");
+  const clientDocumentsRef = collection(projectRef, "clients", sale.clientId, "documents");
+  const lotRef = doc(projectRef, "lots", sale.lotId);
   const activityRef = doc(collection(projectRef, "adminActivity"));
   const batch = writeBatch(db);
 
@@ -618,11 +632,147 @@ export async function deleteTestSaleOperation(
     batch.delete(documentSnapshot.ref);
   });
 
+  const clientDocumentsSnapshot = await getDocs(clientDocumentsRef);
+  clientDocumentsSnapshot.forEach((documentSnapshot) => {
+    const documentSaleId = normalizeString(documentSnapshot.data().saleId);
+    if (documentSaleId === sale.id) {
+      batch.delete(documentSnapshot.ref);
+    }
+  });
+
+  const baseLot = structuredLotsDataById.get(sale.lotId);
+  batch.set(
+    lotRef,
+    {
+      id: sale.lotId,
+      type: baseLot?.type ?? "lote",
+      manzana: baseLot?.manzana ?? extractManzanaFromLabel(sale.lotLabel),
+      lotNumber: baseLot?.lotNumber ?? extractLotNumberFromLabel(sale.lotLabel),
+      name: baseLot?.name ?? sale.lotLabel,
+      area: baseLot?.area ?? null,
+      price: baseLot?.price ?? null,
+      currency: baseLot?.currency ?? null,
+      finalPrice: baseLot?.finalPrice ?? null,
+      deliveryPercent: baseLot?.deliveryPercent ?? null,
+      installments: baseLot?.installments ?? null,
+      financingText: baseLot?.financingText ?? null,
+      description: baseLot?.description ?? null,
+      sourcePage: baseLot?.sourcePage ?? null,
+      dimensions: baseLot?.dimensions ?? null,
+      photo1Url: baseLot?.photo1Url ?? null,
+      photo2Url: baseLot?.photo2Url ?? null,
+      status: "available",
+      saleId: null,
+      clientId: null,
+      updatedAt: serverTimestamp(),
+      updatedBy: userEmail ?? null
+    },
+    { merge: true }
+  );
+
   batch.delete(saleRef);
   batch.set(activityRef, {
     action: "delete-test-sale",
     projectSlug,
-    saleId,
+    saleId: sale.id,
+    clientId: sale.clientId,
+    lotId: sale.lotId,
+    userEmail: userEmail ?? null,
+    createdAt: serverTimestamp()
+  });
+
+  await batch.commit();
+}
+
+export async function cancelSaleOperation(
+  projectSlug: string,
+  sale: SaleOperationRecord,
+  installments: InstallmentRecord[],
+  reason: string,
+  userEmail?: string | null
+) {
+  if (!db) {
+    throw new Error("Firestore no esta configurado. Revisa las variables de entorno VITE_FIREBASE_*.");
+  }
+
+  const projectRef = doc(db, "projects", projectSlug);
+  const saleRef = doc(projectRef, "sales", sale.id);
+  const lotRef = doc(projectRef, "lots", sale.lotId);
+  const activityRef = doc(collection(projectRef, "adminActivity"));
+  const batch = writeBatch(db);
+  const normalizedReason = normalizeBlank(reason) ?? "otro";
+
+  batch.set(
+    saleRef,
+    {
+      status: "cancelled",
+      paymentStatus: null,
+      nextDueDate: null,
+      nextPaymentAmount: null,
+      cancellationReason: normalizedReason,
+      cancelledAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      updatedBy: userEmail ?? null
+    },
+    { merge: true }
+  );
+
+  installments.forEach((installment) => {
+    if (getEffectiveInstallmentStatus(installment) === "paid") {
+      return;
+    }
+
+    batch.set(
+      doc(saleRef, "installments", installment.id),
+      {
+        status: "cancelled",
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  });
+
+  if (!sale.isTest) {
+    const baseLot = structuredLotsDataById.get(sale.lotId);
+
+    batch.set(
+      lotRef,
+      {
+        id: sale.lotId,
+        type: baseLot?.type ?? "lote",
+        manzana: baseLot?.manzana ?? extractManzanaFromLabel(sale.lotLabel),
+        lotNumber: baseLot?.lotNumber ?? extractLotNumberFromLabel(sale.lotLabel),
+        name: baseLot?.name ?? sale.lotLabel,
+        area: baseLot?.area ?? null,
+        price: baseLot?.price ?? null,
+        currency: baseLot?.currency ?? null,
+        finalPrice: baseLot?.finalPrice ?? null,
+        deliveryPercent: baseLot?.deliveryPercent ?? null,
+        installments: baseLot?.installments ?? null,
+        financingText: baseLot?.financingText ?? null,
+        description: baseLot?.description ?? null,
+        sourcePage: baseLot?.sourcePage ?? null,
+        dimensions: baseLot?.dimensions ?? null,
+        photo1Url: baseLot?.photo1Url ?? null,
+        photo2Url: baseLot?.photo2Url ?? null,
+        status: "available",
+        saleId: null,
+        clientId: null,
+        updatedAt: serverTimestamp(),
+        updatedBy: userEmail ?? null
+      },
+      { merge: true }
+    );
+  }
+
+  batch.set(activityRef, {
+    action: sale.isTest ? "cancel-test-sale" : "cancel-sale",
+    projectSlug,
+    saleId: sale.id,
+    clientId: sale.clientId,
+    lotId: sale.lotId,
+    reason: normalizedReason,
     userEmail: userEmail ?? null,
     createdAt: serverTimestamp()
   });
@@ -738,7 +888,7 @@ function normalizeClientDocumentKind(value: unknown): ClientDocumentKind {
 }
 
 function normalizeStatus(value: unknown): SaleOperationRecord["status"] {
-  if (value === "completed" || value === "cancelled") {
+  if (value === "draft" || value === "completed" || value === "cancelled") {
     return value;
   }
 
@@ -754,7 +904,7 @@ function normalizeCurrency(value: unknown): SaleOperationRecord["currency"] {
 }
 
 function normalizePaymentStatus(value: unknown): SaleOperationRecord["paymentStatus"] {
-  if (value === "paid" || value === "overdue") {
+  if (value === "paid" || value === "overdue" || value === "cancelled") {
     return value;
   }
 
@@ -762,7 +912,7 @@ function normalizePaymentStatus(value: unknown): SaleOperationRecord["paymentSta
 }
 
 function normalizeInstallmentStatus(value: unknown): InstallmentStatus {
-  if (value === "paid" || value === "overdue") {
+  if (value === "paid" || value === "overdue" || value === "cancelled") {
     return value;
   }
 
@@ -778,6 +928,10 @@ function normalizeTimestamp(value: unknown) {
 }
 
 export function getEffectiveInstallmentStatus(installment: InstallmentRecord): InstallmentStatus {
+  if (installment.status === "cancelled") {
+    return "cancelled";
+  }
+
   if (installment.status === "paid") {
     return "paid";
   }
@@ -788,7 +942,10 @@ export function getEffectiveInstallmentStatus(installment: InstallmentRecord): I
 
 export function resolveNextDueInstallment(installments: InstallmentRecord[]) {
   return [...installments]
-    .filter((installment) => getEffectiveInstallmentStatus(installment) !== "paid")
+    .filter((installment) => {
+      const effectiveStatus = getEffectiveInstallmentStatus(installment);
+      return effectiveStatus !== "paid" && effectiveStatus !== "cancelled";
+    })
     .sort((left, right) => {
       if (left.dueDate !== right.dueDate) {
         return left.dueDate.localeCompare(right.dueDate);
@@ -796,4 +953,14 @@ export function resolveNextDueInstallment(installments: InstallmentRecord[]) {
 
       return left.number - right.number;
     })[0] ?? null;
+}
+
+function extractManzanaFromLabel(lotLabel: string) {
+  const match = lotLabel.match(/Lote\s+([A-Za-z0-9]+)-/i);
+  return match?.[1] ?? null;
+}
+
+function extractLotNumberFromLabel(lotLabel: string) {
+  const match = lotLabel.match(/-(\d{1,3})$/);
+  return match?.[1] ?? null;
 }
