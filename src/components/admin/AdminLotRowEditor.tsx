@@ -278,8 +278,8 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
 
       {isEditing ? (
         <div className="border-t border-stone-200 bg-white/70 px-3 py-4 sm:px-4">
-          <div className="grid gap-3 xl:grid-cols-[minmax(180px,1.2fr)_minmax(150px,1.05fr)_110px_120px_88px_120px_126px_150px_170px_auto] xl:items-end">
-            <Field label="Lote">
+          <div className="grid gap-3 xl:grid-cols-12 xl:items-end">
+            <Field label="Lote" className="xl:col-span-2">
               <input
                 value={lotLabel}
                 onChange={(event) => applyLotLabel(event.target.value, setForm)}
@@ -288,7 +288,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
               />
             </Field>
 
-            <Field label="Dimensiones">
+            <Field label="Dimensiones" className="xl:col-span-2">
               <div className="grid grid-cols-2 gap-2">
                 <input
                   value={form.width}
@@ -307,13 +307,13 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
               </div>
             </Field>
 
-            <Field label="m2">
+            <Field label="m2" className="xl:col-span-1">
               <div className="flex min-h-[44px] items-center rounded-2xl border border-stone-200 bg-[#f3ede4] px-3 text-sm font-semibold text-slate-800">
                 {areaLabel}
               </div>
             </Field>
 
-            <Field label={form.currency === "USD" ? "Precio final" : "Precio base"}>
+            <Field label={form.currency === "USD" ? "Precio final" : "Precio base"} className="xl:col-span-1">
               <input
                 value={form.price}
                 onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
@@ -323,7 +323,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
               />
             </Field>
 
-            <Field label="Moneda">
+            <Field label="Moneda" className="xl:col-span-1">
               <div className="grid grid-cols-2 gap-1 rounded-2xl border border-stone-200 bg-white p-1">
                 {currencyOptions.map((option) => {
                   const isActive = form.currency === option.value;
@@ -344,7 +344,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
               </div>
             </Field>
 
-            <Field label="Cuotas">
+            <Field label="Cuotas" className="xl:col-span-1">
               <input
                 value={form.installments}
                 onChange={(event) => setForm((current) => ({ ...current, installments: event.target.value }))}
@@ -354,7 +354,7 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
               />
             </Field>
 
-            <Field label="Entrega %">
+            <Field label="Entrega %" className="xl:col-span-1">
               <input
                 value={form.deliveryPercent}
                 onChange={(event) => setForm((current) => ({ ...current, deliveryPercent: event.target.value }))}
@@ -364,13 +364,13 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
               />
             </Field>
 
-            <Field label={commercialPrice.label}>
+            <Field label={commercialPrice.label} className="xl:col-span-2">
               <div className="flex min-h-[44px] items-center rounded-2xl border border-stone-200 bg-[#f3ede4] px-3 text-sm font-semibold text-slate-800">
                 {commercialPrice.value}
               </div>
             </Field>
 
-            <Field label="Estado">
+            <Field label="Estado" className="xl:col-span-2">
               <select
                 value={form.status}
                 onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as LotEditorState["status"] }))}
@@ -383,26 +383,26 @@ export function AdminLotRowEditor({ item }: AdminLotRowEditorProps) {
                 ))}
               </select>
             </Field>
+          </div>
 
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-1">
-              <button
-                type="button"
-                onClick={() => {
-                  void handleSave();
-                }}
-                disabled={saving}
-                className="rounded-full bg-[#0f2f35] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving ? "Guardando..." : "Guardar"}
-              </button>
-              <button
-                type="button"
-                onClick={handleToggleEditing}
-                className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
-              >
-                Cancelar
-              </button>
-            </div>
+          <div className="mt-3 flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void handleSave();
+              }}
+              disabled={saving}
+              className="rounded-full bg-[#0f2f35] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#143b43] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Guardando..." : "Guardar"}
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleEditing}
+              className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#8fa88b] hover:text-[#0f2f35]"
+            >
+              Cancelar
+            </button>
           </div>
 
           <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -512,18 +512,18 @@ function parseNumberLike(value: string) {
   return Number.isFinite(normalized) ? normalized : null;
 }
 
-function Field({ children, label }: { children: ReactNode; label: string }) {
+function Field({ children, className, label }: { children: ReactNode; className?: string; label: string }) {
   return (
-    <label className="block">
+    <label className={["block min-w-0", className ?? ""].join(" ").trim()}>
       <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</span>
       {children}
     </label>
   );
 }
 
-function CompactField({ children, label }: { children: ReactNode; label: string }) {
+function CompactField({ children, className, label }: { children: ReactNode; className?: string; label: string }) {
   return (
-    <label className="block">
+    <label className={["block min-w-0", className ?? ""].join(" ").trim()}>
       <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</span>
       {children}
     </label>
