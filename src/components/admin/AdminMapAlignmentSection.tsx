@@ -9,6 +9,7 @@ import {
 } from "../../services/projectSettingsRepository";
 import type { MapAlignmentConfig } from "../../types/project";
 import { defaultMapAlignmentConfig } from "../../types/project";
+import { compressImageFile, formatFileSize } from "../../utils/fileCompression";
 import { clampAlignmentConfig } from "../../utils/mapAlignment";
 import { MapAlignmentEditor } from "./MapAlignmentEditor";
 
@@ -18,6 +19,8 @@ export function AdminMapAlignmentSection() {
   const [draft, setDraft] = useState<MapAlignmentConfig>(projectSettings.mapAlignment);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "saving">("idle");
   const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const [backgroundProgress, setBackgroundProgress] = useState(0);
+  const [backgroundHint, setBackgroundHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,10 +49,29 @@ export function AdminMapAlignmentSection() {
 
   async function handleBackgroundUpload(file: File) {
     setBackgroundBusy(true);
+    setBackgroundProgress(0);
+    setBackgroundHint(null);
     setError(null);
 
     try {
-      const uploadedBackground = await uploadProjectAlignmentBackground(PROJECT_SLUG, file);
+      const compression = await compressImageFile(file, {
+        maxWidth: 2400,
+        maxHeight: 2400,
+        quality: 0.84,
+        outputType: "image/jpeg"
+      });
+
+      if (compression.compressed) {
+        setBackgroundHint(
+          `Imagen optimizada: ${formatFileSize(compression.originalSize)} -> ${formatFileSize(compression.compressedSize)}`
+        );
+      } else {
+        setBackgroundHint(`Imagen lista para subir: ${formatFileSize(compression.originalSize)}`);
+      }
+
+      const uploadedBackground = await uploadProjectAlignmentBackground(PROJECT_SLUG, compression.file, {
+        onProgress: setBackgroundProgress
+      });
       if (draft.backgroundImageStoragePath) {
         await deleteProjectAlignmentBackground(draft.backgroundImageStoragePath);
       }
@@ -60,6 +82,7 @@ export function AdminMapAlignmentSection() {
           backgroundImageStoragePath: uploadedBackground.storagePath
         })
       );
+      setBackgroundHint((currentHint) => currentHint ?? "Imagen base subida correctamente.");
     } catch (nextError) {
       console.error("[AdminMapAlignmentSection] Error subiendo mapa base:", nextError);
       setError(nextError instanceof Error ? nextError.message : "No se pudo subir la imagen base.");
@@ -118,6 +141,8 @@ export function AdminMapAlignmentSection() {
 
       <MapAlignmentEditor
         backgroundBusy={backgroundBusy}
+        backgroundHint={backgroundHint}
+        backgroundProgress={backgroundProgress}
         error={error}
         onBackgroundUpload={handleBackgroundUpload}
         onChange={(nextValue) => {
