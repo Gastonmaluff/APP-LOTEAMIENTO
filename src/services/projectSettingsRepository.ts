@@ -1,4 +1,4 @@
-import { deleteObject, getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { doc, onSnapshot, serverTimestamp, writeBatch } from "firebase/firestore";
 import { PROJECT_NAME, PUBLIC_PROJECT_ROUTE } from "../config/project";
 import { db, storage } from "../firebase/client";
@@ -69,14 +69,7 @@ export async function saveProjectMapAlignment(
   await batch.commit();
 }
 
-export async function uploadProjectAlignmentBackground(
-  projectSlug: string,
-  file: File,
-  options?: {
-    onProgress?: (progress: number) => void;
-    timeoutMs?: number;
-  }
-) {
+export async function uploadProjectAlignmentBackground(projectSlug: string, file: File) {
   if (!storage) {
     throw new Error("Firebase Storage no esta configurado.");
   }
@@ -84,48 +77,15 @@ export async function uploadProjectAlignmentBackground(
   const extension = resolveFileExtension(file.name);
   const storagePath = `projects/${projectSlug}/map-alignment/background-${Date.now()}.${extension}`;
   const storageRef = ref(storage, storagePath);
-  const timeoutMs = options?.timeoutMs ?? 45000;
 
-  return new Promise<{ storagePath: string; url: string }>((resolve, reject) => {
-    const uploadTask = uploadBytesResumable(storageRef, file, {
-      contentType: file.type || "image/jpeg",
-      cacheControl: "public,max-age=31536000"
-    });
-
-    let timeoutId = window.setTimeout(() => {
-      uploadTask.cancel();
-      reject(new Error("La subida de la imagen base tardó demasiado. Prueba con una imagen más liviana."));
-    }, timeoutMs);
-
-    const refreshTimeout = () => {
-      window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(() => {
-        uploadTask.cancel();
-        reject(new Error("La subida de la imagen base tardó demasiado. Prueba con una imagen más liviana."));
-      }, timeoutMs);
-    };
-
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        refreshTimeout();
-        const progress = snapshot.totalBytes > 0 ? snapshot.bytesTransferred / snapshot.totalBytes : 0;
-        options?.onProgress?.(progress);
-      },
-      (error) => {
-        window.clearTimeout(timeoutId);
-        reject(resolveStorageError(error));
-      },
-      async () => {
-        window.clearTimeout(timeoutId);
-        options?.onProgress?.(1);
-        resolve({
-          storagePath,
-          url: await getDownloadURL(uploadTask.snapshot.ref)
-        });
-      }
-    );
+  await uploadBytes(storageRef, file, {
+    contentType: file.type || "image/jpeg"
   });
+
+  return {
+    storagePath,
+    url: await getDownloadURL(storageRef)
+  };
 }
 
 export async function deleteProjectAlignmentBackground(storagePath?: string | null) {
@@ -281,20 +241,4 @@ function resolveFileExtension(fileName: string) {
   }
 
   return extension;
-}
-
-function resolveStorageError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return new Error("No se pudo subir la imagen base.");
-  }
-
-  if ("code" in error && error.code === "storage/unauthorized") {
-    return new Error("Firebase Storage no tiene permisos de escritura para este usuario.");
-  }
-
-  if ("code" in error && error.code === "storage/canceled") {
-    return new Error("La subida de la imagen base fue cancelada.");
-  }
-
-  return error;
 }

@@ -11,8 +11,6 @@ import {
 
 type MapAlignmentEditorProps = {
   backgroundBusy: boolean;
-  backgroundHint: string | null;
-  backgroundProgress: number;
   error: string | null;
   onBackgroundUpload: (file: File) => void;
   onChange: (nextValue: MapAlignmentConfig) => void;
@@ -34,8 +32,6 @@ const svgImageSrc = `${import.meta.env.BASE_URL}mapa-loteamiento.svg`;
 
 export function MapAlignmentEditor({
   backgroundBusy,
-  backgroundHint,
-  backgroundProgress,
   error,
   onBackgroundUpload,
   onChange,
@@ -411,24 +407,6 @@ export function MapAlignmentEditor({
               </span>
               <input type="file" accept="image/*" className="hidden" onChange={handleBackgroundImageChange} />
             </label>
-
-            {backgroundBusy ? (
-              <div className="space-y-2">
-                <div className="h-2 overflow-hidden rounded-full bg-[#ece5da]">
-                  <div
-                    className="h-full rounded-full bg-[#8fa88b] transition-[width] duration-300"
-                    style={{ width: `${Math.max(backgroundProgress * 100, 8)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-slate-500">
-                  {backgroundProgress > 0
-                    ? `Subiendo imagen... ${Math.round(backgroundProgress * 100)}%`
-                    : "Preparando imagen para la subida..."}
-                </p>
-              </div>
-            ) : null}
-
-            {backgroundHint ? <p className="text-xs leading-6 text-slate-500">{backgroundHint}</p> : null}
           </div>
         </ControlCard>
 
