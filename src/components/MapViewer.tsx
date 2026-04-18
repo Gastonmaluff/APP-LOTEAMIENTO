@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LotData } from "../types/lots";
+import type { MapAlignmentConfig } from "../types/project";
+import { buildOverlayColor, buildTransformStyle, DEFAULT_SVG_ASPECT_RATIO, fitRect } from "../utils/mapAlignment";
 import { getCommercialPriceSummary, getFeatureData, getFeatureTypeFromId, getStatusLabel, statusPalette } from "../utils/mapUtils";
 import type { LotSelectionVisualPayload } from "./LotSelectionFlight";
 
@@ -16,6 +18,7 @@ type MapViewerProps = {
   onActiveChange: (item: LotData | null) => void;
   onHoverChange: (item: LotData | null) => void;
   onSelectionVisual?: (payload: LotSelectionVisualPayload | null) => void;
+  mapAlignment?: MapAlignmentConfig | null;
   readOnly?: boolean;
   selectedLotId?: string | null;
 };
@@ -31,14 +34,18 @@ export function MapViewer({
   onActiveChange,
   onHoverChange,
   onSelectionVisual,
+  mapAlignment,
   readOnly = false,
   selectedLotId
 }: MapViewerProps) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const svgRootRef = useRef<SVGSVGElement | null>(null);
   const lotsByIdRef = useRef<Map<string, LotData>>(new Map());
 
   const [svgMarkup, setSvgMarkup] = useState("");
+  const [svgAspectRatio, setSvgAspectRatio] = useState(DEFAULT_SVG_ASPECT_RATIO);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState>(null);
@@ -61,6 +68,30 @@ export function MapViewer({
   }, [lotsById]);
 
   useEffect(() => {
+    if (!stageRef.current) {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+
+      setStageSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height
+      });
+    });
+
+    observer.observe(stageRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
     const svgUrl = `${import.meta.env.BASE_URL}mapa-loteamiento.svg?ts=${Date.now()}`;
 
@@ -75,6 +106,7 @@ export function MapViewer({
         const markup = await response.text();
         if (isMounted) {
           setSvgMarkup(markup);
+          setSvgAspectRatio(resolveSvgAspectRatio(markup));
           setError(null);
         }
       })
@@ -95,6 +127,12 @@ export function MapViewer({
     }
 
     const frame = frameRef.current;
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return;
+    }
+
     frame.innerHTML = svgMarkup;
 
     const svgRoot = frame.querySelector("svg");
@@ -105,11 +143,11 @@ export function MapViewer({
 
     svgRootRef.current = svgRoot;
     svgRoot.setAttribute("width", "100%");
+    svgRoot.setAttribute("height", "100%");
     svgRoot.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    svgRoot.removeAttribute("height");
     svgRoot.style.display = "block";
     svgRoot.style.width = "100%";
-    svgRoot.style.height = "auto";
+    svgRoot.style.height = "100%";
     svgRoot.style.maxWidth = "100%";
     svgRoot.style.overflow = "visible";
 
@@ -162,7 +200,7 @@ export function MapViewer({
 
         if (item && item.type !== "road") {
           const bounds = current.getBoundingClientRect();
-          const frameBounds = frame.getBoundingClientRect();
+          const frameBounds = stage.getBoundingClientRect();
           setTooltip({
             item,
             x: bounds.left - frameBounds.left + bounds.width / 2,
@@ -181,7 +219,7 @@ export function MapViewer({
         }
 
         const mouseEvent = event as MouseEvent;
-        const frameBounds = frame.getBoundingClientRect();
+        const frameBounds = stage.getBoundingClientRect();
         setTooltip({
           item,
           x: mouseEvent.clientX - frameBounds.left,
@@ -261,14 +299,14 @@ export function MapViewer({
       }
     };
 
-    frame.addEventListener("mouseleave", handleFrameLeave);
-    frame.addEventListener("click", handleFrameClick);
+    stage.addEventListener("mouseleave", handleFrameLeave);
+    stage.addEventListener("click", handleFrameClick);
     paintInteractiveNodes(svgRoot, null, selectedLotId ?? null, statusesById, highlightedLotIdsSet, hasHighlightFilter);
 
     return () => {
       cleanups.forEach((cleanup) => cleanup());
-      frame.removeEventListener("mouseleave", handleFrameLeave);
-      frame.removeEventListener("click", handleFrameClick);
+      stage.removeEventListener("mouseleave", handleFrameLeave);
+      stage.removeEventListener("click", handleFrameClick);
     };
   }, [hasHighlightFilter, highlightedLotIdsSet, onActiveChange, onHoverChange, onSelectionVisual, readOnly, selectedLotId, svgMarkup]);
 
@@ -308,6 +346,18 @@ export function MapViewer({
     });
   }, [activeId, hoveredId, lotsById, onActiveChange, onHoverChange]);
 
+  const svgBaseRect = useMemo(
+    () => fitRect(stageSize.width || 1, stageSize.height || 1, svgAspectRatio),
+    [stageSize.height, stageSize.width, svgAspectRatio]
+  );
+  const overlayColor = useMemo(
+    () =>
+      mapAlignment?.backgroundImage
+        ? buildOverlayColor(mapAlignment.visual.overlayColor, mapAlignment.visual.overlayOpacity)
+        : null,
+    [mapAlignment]
+  );
+
   return (
     <div className="relative mx-auto flex w-full max-w-[1280px] justify-center">
       <div className="relative w-full max-w-full">
@@ -316,8 +366,51 @@ export function MapViewer({
             {error}
           </div>
         ) : (
-          <div className="relative w-full max-w-full overflow-visible">
-            <div ref={frameRef} className="mx-auto w-full max-w-[1280px] px-0 py-1 sm:px-1 sm:py-3 lg:px-2 lg:py-4" />
+          <div
+            ref={stageRef}
+            className="relative w-full max-w-full overflow-hidden rounded-[28px]"
+            style={{ aspectRatio: `${svgAspectRatio}` }}
+          >
+            {mapAlignment?.backgroundImage ? (
+              <div
+                className="pointer-events-none absolute inset-0 origin-center"
+                style={{
+                  filter: `blur(${mapAlignment.visual.blurPx}px)`,
+                  opacity: mapAlignment.visual.satelliteOpacity,
+                  transform: buildTransformStyle({
+                    x: mapAlignment.backgroundTransform.x,
+                    y: mapAlignment.backgroundTransform.y,
+                    rotation: 0,
+                    scale: mapAlignment.backgroundTransform.scale
+                  })
+                }}
+              >
+                <img
+                  src={mapAlignment.backgroundImage}
+                  alt="Contexto satelital del proyecto."
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                />
+              </div>
+            ) : null}
+
+            {overlayColor ? <div className="pointer-events-none absolute inset-0" style={{ backgroundColor: overlayColor }} /> : null}
+
+            <div
+              className="absolute"
+              style={{
+                left: svgBaseRect.left,
+                top: svgBaseRect.top,
+                width: svgBaseRect.width,
+                height: svgBaseRect.height,
+                opacity: mapAlignment?.svgTransform.opacity ?? 1,
+                transform: buildTransformStyle(mapAlignment?.svgTransform ?? { x: 0, y: 0, scale: 1, rotation: 0 }),
+                transformOrigin: "center center"
+              }}
+            >
+              <div ref={frameRef} className="h-full w-full" />
+            </div>
+
             {tooltip ? (
               <div
                 className="pointer-events-none absolute z-10 hidden max-w-[220px] -translate-x-1/2 -translate-y-full rounded-[22px] border border-white/80 bg-white/95 px-4 py-3 text-sm text-slate-900 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur sm:block"
@@ -377,6 +470,23 @@ function serializeRect(rect: DOMRect) {
     top: rect.top,
     width: rect.width
   };
+}
+
+function resolveSvgAspectRatio(svgMarkup: string) {
+  const viewBoxMatch = svgMarkup.match(/viewBox="([\d.\s-]+)"/i);
+  if (viewBoxMatch) {
+    const [, rawViewBox] = viewBoxMatch;
+    const values = rawViewBox
+      .trim()
+      .split(/\s+/)
+      .map((value) => Number(value));
+
+    if (values.length === 4 && values[2] > 0 && values[3] > 0) {
+      return values[2] / values[3];
+    }
+  }
+
+  return DEFAULT_SVG_ASPECT_RATIO;
 }
 
 function paintInteractiveNodes(
