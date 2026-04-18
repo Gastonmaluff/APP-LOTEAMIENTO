@@ -1,13 +1,12 @@
 import { useEffect, useRef, useMemo, useState } from "react";
 import { AdminFinanceSection } from "../../components/admin/AdminFinanceSection";
-import { AdminMapAlignmentSection } from "../../components/admin/AdminMapAlignmentSection";
 import { PROJECT_NAME, PROJECT_SLUG } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLots } from "../../contexts/LotsContext";
 import { syncProjectLotsFromState } from "../../services/lotsRepository";
 import { AdminInventorySection } from "./AdminLotsPage";
 
-type AdminModule = "alignment" | "inventory" | "finance";
+type AdminModule = "inventory" | "finance";
 
 export function AdminDashboardPage() {
   const { user } = useAuth();
@@ -59,7 +58,7 @@ export function AdminDashboardPage() {
         <h1 className="font-display mt-2 text-[2.2rem] leading-tight text-[#092930] sm:mt-3 sm:text-[2.8rem]">{PROJECT_NAME}</h1>
       </section>
 
-      <section className="grid grid-cols-3 gap-2 rounded-full border border-stone-200 bg-white/88 p-1.5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:max-w-xl">
+      <section className="grid grid-cols-2 gap-2 rounded-full border border-stone-200 bg-white/88 p-1.5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:max-w-md">
         <ModuleTab
           active={activeModule === "inventory"}
           label="Inventario"
@@ -69,11 +68,6 @@ export function AdminDashboardPage() {
           active={activeModule === "finance"}
           label="Financiero"
           onClick={() => setActiveModule("finance")}
-        />
-        <ModuleTab
-          active={activeModule === "alignment"}
-          label="Alineacion"
-          onClick={() => setActiveModule("alignment")}
         />
       </section>
 
@@ -94,8 +88,6 @@ export function AdminDashboardPage() {
 
           <AdminInventorySection />
         </>
-      ) : activeModule === "alignment" ? (
-        <AdminMapAlignmentSection />
       ) : (
         <AdminFinanceSection />
       )}

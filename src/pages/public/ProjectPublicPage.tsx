@@ -5,7 +5,6 @@ import { LotSelectionFlight, type LotSelectionVisualPayload } from "../../compon
 import { MapViewer } from "../../components/MapViewer";
 import { ContactSection } from "../../components/public/ContactSection";
 import { useLots } from "../../contexts/LotsContext";
-import { useProjectSettings } from "../../contexts/ProjectSettingsContext";
 import type { LotData } from "../../types/lots";
 import { getCommercialPriceSummary, getStatusLabel } from "../../utils/mapUtils";
 
@@ -44,7 +43,6 @@ const projectVisuals = [
 
 export function ProjectPublicPage() {
   const { loading, lots, seedRecommended, source } = useLots();
-  const { projectSettings } = useProjectSettings();
   const [activeItem, setActiveItem] = useState<LotData | null>(null);
   const [hoveredItem, setHoveredItem] = useState<LotData | null>(null);
   const [previewVisible, setPreviewVisible] = useState(true);
@@ -336,7 +334,6 @@ export function ProjectPublicPage() {
                       hasHighlightFilter={false}
                       lots={lots}
                       highlightedLotIds={highlightedLotIds}
-                      mapAlignment={projectSettings.mapAlignment}
                       onActiveChange={setActiveItem}
                       onHoverChange={setHoveredItem}
                       onSelectionVisual={setSelectionVisual}
