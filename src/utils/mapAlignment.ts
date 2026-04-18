@@ -49,7 +49,8 @@ export function clampAlignmentConfig(alignment: MapAlignmentConfig): MapAlignmen
     backgroundTransform: {
       x: roundValue(alignment.backgroundTransform.x),
       y: roundValue(alignment.backgroundTransform.y),
-      scale: clamp(roundValue(alignment.backgroundTransform.scale), 0.4, 3)
+      scale: clamp(roundValue(alignment.backgroundTransform.scale), 0.4, 3),
+      rotation: clamp(roundValue(alignment.backgroundTransform.rotation), -45, 45)
     },
     visual: {
       satelliteOpacity: clamp(roundValue(alignment.visual.satelliteOpacity), 0, 1),
@@ -76,6 +77,12 @@ export function buildTransformStyle({
   y: number;
 }) {
   return `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
+}
+
+export function getBackgroundEffectiveScale(scale: number, rotation: number) {
+  const normalizedRotation = Math.abs(rotation);
+  const coverageBoost = 1 + Math.min(normalizedRotation / 180, 0.12);
+  return scale * coverageBoost;
 }
 
 export function buildOverlayColor(color: string, opacity: number) {

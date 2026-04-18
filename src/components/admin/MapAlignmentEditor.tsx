@@ -6,7 +6,8 @@ import {
   buildOverlayColor,
   buildTransformStyle,
   clampAlignmentConfig,
-  fitRect
+  fitRect,
+  getBackgroundEffectiveScale
 } from "../../utils/mapAlignment";
 
 type MapAlignmentEditorProps = {
@@ -252,8 +253,11 @@ export function MapAlignmentEditor({
                 transform: buildTransformStyle({
                   x: value.backgroundTransform.x,
                   y: value.backgroundTransform.y,
-                  rotation: 0,
-                  scale: value.backgroundTransform.scale
+                  rotation: value.backgroundTransform.rotation,
+                  scale: getBackgroundEffectiveScale(
+                    value.backgroundTransform.scale,
+                    value.backgroundTransform.rotation
+                  )
                 }),
                 filter: `blur(${value.visual.blurPx}px)`,
                 opacity: value.visual.satelliteOpacity
@@ -502,6 +506,14 @@ export function MapAlignmentEditor({
               step={0.01}
               value={value.backgroundTransform.scale}
               onChange={(nextValue) => updateNestedSection("backgroundTransform", { scale: nextValue })}
+            />
+            <SliderField
+              label="Rotacion fondo"
+              min={-45}
+              max={45}
+              step={0.1}
+              value={value.backgroundTransform.rotation}
+              onChange={(nextValue) => updateNestedSection("backgroundTransform", { rotation: nextValue })}
             />
             <SliderField
               label="Opacidad satelite"

@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LotData } from "../types/lots";
 import type { MapAlignmentConfig } from "../types/project";
-import { buildOverlayColor, buildTransformStyle, DEFAULT_SVG_ASPECT_RATIO, fitRect } from "../utils/mapAlignment";
+import {
+  buildOverlayColor,
+  buildTransformStyle,
+  DEFAULT_SVG_ASPECT_RATIO,
+  fitRect,
+  getBackgroundEffectiveScale
+} from "../utils/mapAlignment";
 import { getCommercialPriceSummary, getFeatureData, getFeatureTypeFromId, getStatusLabel, statusPalette } from "../utils/mapUtils";
 import type { LotSelectionVisualPayload } from "./LotSelectionFlight";
 
@@ -380,8 +386,11 @@ export function MapViewer({
                   transform: buildTransformStyle({
                     x: mapAlignment.backgroundTransform.x,
                     y: mapAlignment.backgroundTransform.y,
-                    rotation: 0,
-                    scale: mapAlignment.backgroundTransform.scale
+                    rotation: mapAlignment.backgroundTransform.rotation,
+                    scale: getBackgroundEffectiveScale(
+                      mapAlignment.backgroundTransform.scale,
+                      mapAlignment.backgroundTransform.rotation
+                    )
                   })
                 }}
               >
