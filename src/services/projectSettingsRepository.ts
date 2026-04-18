@@ -178,11 +178,6 @@ function normalizeMapAlignment(value: unknown): MapAlignmentConfig {
         rawData.backgroundTransform,
         "scale",
         defaultMapAlignmentConfig.backgroundTransform.scale
-      ),
-      rotation: normalizeNumber(
-        rawData.backgroundTransform,
-        "rotation",
-        defaultMapAlignmentConfig.backgroundTransform.rotation
       )
     },
     visual: {
@@ -259,8 +254,7 @@ function serializeMapAlignment(alignment: MapAlignmentConfig) {
     backgroundTransform: {
       x: alignment.backgroundTransform.x,
       y: alignment.backgroundTransform.y,
-      scale: alignment.backgroundTransform.scale,
-      rotation: alignment.backgroundTransform.rotation
+      scale: alignment.backgroundTransform.scale
     },
     visual: {
       satelliteOpacity: alignment.visual.satelliteOpacity,

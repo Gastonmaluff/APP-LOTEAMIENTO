@@ -17,7 +17,6 @@ export type MapAlignmentConfig = {
     x: number;
     y: number;
     scale: number;
-    rotation: number;
   };
   visual: {
     satelliteOpacity: number;
@@ -51,8 +50,7 @@ export const defaultMapAlignmentConfig: MapAlignmentConfig = {
   backgroundTransform: {
     x: 0,
     y: 0,
-    scale: 1,
-    rotation: 0
+    scale: 1
   },
   visual: {
     satelliteOpacity: 0.28,
