@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PROJECT_SLUG } from "../../config/project";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -33,7 +33,6 @@ export function AdminFinanceSection() {
   const [installmentsBySaleId, setInstallmentsBySaleId] = useState<Record<string, InstallmentRecord[]>>({});
   const [clientSearch, setClientSearch] = useState("");
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [clientProfileStartsEditing, setClientProfileStartsEditing] = useState(false);
   const [saleVisibilityFilter, setSaleVisibilityFilter] = useState<"active" | "cancelled" | "test" | "all">("active");
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   const [cancellingSaleId, setCancellingSaleId] = useState<string | null>(null);
@@ -299,22 +298,19 @@ export function AdminFinanceSection() {
     }
   }
 
-  function openClientProfile(clientId: string, options?: { startEditing?: boolean }) {
+  function openClientProfile(clientId: string) {
     setSelectedClientId(clientId);
-    setClientProfileStartsEditing(options?.startEditing === true);
     setClientSearch("");
   }
 
   function openOperation(saleId: string) {
     setSelectedOperationId(saleId);
     setSelectedClientId(null);
-    setClientProfileStartsEditing(false);
   }
 
   function openRegisterPayment(saleId: string) {
     setSelectedOperationId(saleId);
     setSelectedClientId(null);
-    setClientProfileStartsEditing(false);
     setIsRegisteringPayment(true);
   }
 
@@ -487,27 +483,53 @@ export function AdminFinanceSection() {
                     <p>Estado de pago: {operation.status === "cancelled" ? "Anulada" : getPaymentLabel(operation.paymentStatus)}</p>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <WhatsAppAction operation={operation} />
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => openClientProfile(operation.clientId, { startEditing: true })}
-                      className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b] hover:bg-[#f7f1e8]"
+                      onClick={() => openOperation(operation.id)}
+                      className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
                     >
-                      Registrar gestion
+                      Ver ficha
                     </button>
-                    <OperationActionMenu
-                      operation={operation}
-                      isCancelling={cancellingSaleId === operation.id}
-                      isDeleting={deletingSaleId === operation.id || cleaningTests}
-                      onEdit={() => openClientProfile(operation.clientId, { startEditing: true })}
-                      onDelete={() => {
-                        void handleDeleteTestSale(operation);
-                      }}
-                      onCloseSale={() => {
-                        void handleCancelSale(operation);
-                      }}
-                    />
+                    <button
+                      type="button"
+                      onClick={() => openClientProfile(operation.clientId)}
+                      className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
+                    >
+                      Ver cliente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openRegisterPayment(operation.id)}
+                      disabled={operation.status === "cancelled"}
+                      className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-[#0f2f35] transition hover:border-[#8fa88b]"
+                    >
+                      Registrar cobro
+                    </button>
+                    {!operation.isTest && operation.status !== "cancelled" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleCancelSale(operation);
+                        }}
+                        disabled={cancellingSaleId === operation.id}
+                        className="rounded-full border border-amber-200 px-4 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {cancellingSaleId === operation.id ? "Anulando..." : "Anular venta"}
+                      </button>
+                    ) : null}
+                    {operation.isTest ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleDeleteTestSale(operation);
+                        }}
+                        disabled={deletingSaleId === operation.id || cleaningTests}
+                        className="rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingSaleId === operation.id ? "Eliminando..." : "Eliminar prueba"}
+                      </button>
+                    ) : null}
                   </div>
                 </article>
               ))}
@@ -746,167 +768,12 @@ export function AdminFinanceSection() {
           client={selectedClient}
           sales={sales}
           installmentsBySaleId={installmentsBySaleId}
-          onClose={() => {
-            setSelectedClientId(null);
-            setClientProfileStartsEditing(false);
-          }}
+          onClose={() => setSelectedClientId(null)}
           onOpenOperation={openOperation}
           onRegisterPayment={openRegisterPayment}
-          startEditing={clientProfileStartsEditing}
         />
       ) : null}
     </section>
-  );
-}
-
-function WhatsAppAction({ operation }: { operation: SaleOperationRecord }) {
-  const href = buildOperationWhatsAppHref(operation);
-
-  if (!href) {
-    return (
-      <button
-        type="button"
-        disabled
-        className="rounded-full border border-stone-200 px-4 py-2 text-xs font-semibold text-slate-400"
-      >
-        WhatsApp
-      </button>
-    );
-  }
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-2 rounded-full bg-[#1f3d2b] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#294f39]"
-    >
-      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
-        <path d="M19.05 4.94A9.86 9.86 0 0 0 12.02 2C6.5 2 2.02 6.48 2.02 12c0 1.76.46 3.48 1.33 5L2 22l5.13-1.34A9.95 9.95 0 0 0 12.02 22C17.54 22 22.02 17.52 22.02 12c0-2.66-1.04-5.16-2.97-7.06ZM12.02 20.16c-1.51 0-2.99-.4-4.29-1.15l-.31-.18-3.04.79.81-2.97-.2-.31A8.1 8.1 0 0 1 3.86 12c0-4.5 3.66-8.16 8.16-8.16 2.18 0 4.23.85 5.76 2.39A8.09 8.09 0 0 1 20.18 12c0 4.5-3.66 8.16-8.16 8.16Zm4.47-6.12c-.24-.12-1.43-.7-1.65-.78-.22-.08-.39-.12-.55.12-.16.24-.63.78-.77.94-.14.16-.29.18-.53.06a6.64 6.64 0 0 1-1.96-1.21 7.36 7.36 0 0 1-1.36-1.68c-.14-.24-.01-.36.11-.48.11-.11.24-.29.37-.43.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.33-.75-1.82-.2-.49-.4-.42-.55-.43h-.47c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.31.98 2.47.12.16 1.69 2.58 4.1 3.62.57.25 1.02.4 1.37.5.58.18 1.11.15 1.53.09.47-.07 1.43-.58 1.63-1.14.2-.56.2-1.04.14-1.14-.05-.1-.21-.16-.45-.28Z" />
-      </svg>
-      <span>WhatsApp</span>
-    </a>
-  );
-}
-
-function OperationActionMenu({
-  operation,
-  isCancelling,
-  isDeleting,
-  onCloseSale,
-  onDelete,
-  onEdit
-}: {
-  operation: SaleOperationRecord;
-  isCancelling: boolean;
-  isDeleting: boolean;
-  onCloseSale: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open]);
-
-  const canDelete = operation.isTest && !isDeleting;
-  const canCloseSale = !operation.isTest && operation.status !== "cancelled" && !isCancelling;
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 bg-white text-[#0f2f35] transition hover:border-[#8fa88b] hover:bg-[#f7f1e8]"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="Abrir acciones"
-      >
-        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-current">
-          <circle cx="10" cy="4" r="1.7" />
-          <circle cx="10" cy="10" r="1.7" />
-          <circle cx="10" cy="16" r="1.7" />
-        </svg>
-      </button>
-
-      {open ? (
-        <div className="absolute right-0 z-20 mt-2 min-w-[180px] rounded-[18px] border border-stone-200 bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-          <MenuAction
-            label="Editar"
-            onClick={() => {
-              setOpen(false);
-              onEdit();
-            }}
-          />
-          <MenuAction
-            label={isDeleting ? "Eliminando..." : "Eliminar"}
-            destructive
-            disabled={!canDelete}
-            onClick={() => {
-              if (!canDelete) {
-                return;
-              }
-              setOpen(false);
-              onDelete();
-            }}
-          />
-          <MenuAction
-            label={isCancelling ? "Cerrando..." : "Cerrar venta"}
-            disabled={!canCloseSale}
-            onClick={() => {
-              if (!canCloseSale) {
-                return;
-              }
-              setOpen(false);
-              onCloseSale();
-            }}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MenuAction({
-  destructive = false,
-  disabled = false,
-  label,
-  onClick
-}: {
-  destructive?: boolean;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={[
-        "flex w-full items-center rounded-[14px] px-3 py-2 text-left text-sm font-medium transition",
-        disabled
-          ? "cursor-not-allowed text-slate-300"
-          : destructive
-            ? "text-rose-700 hover:bg-rose-50"
-            : "text-[#0f2f35] hover:bg-[#f7f1e8]"
-      ].join(" ")}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -1076,25 +943,6 @@ function getOperationTone(operation: SaleOperationRecord) {
   return operation.operationType === "reserve"
     ? "border-[#dccfbf] bg-[#f6f1ea] text-[#7e6f5d]"
     : "border-[#cedcc8] bg-[#eff5ec] text-[#567052]";
-}
-
-function buildOperationWhatsAppHref(operation: SaleOperationRecord) {
-  const phone = operation.clientPhone?.replace(/\D/g, "") ?? "";
-
-  if (!phone) {
-    return null;
-  }
-
-  const message = [
-    `Hola ${operation.clientName},`,
-    `te escribo por ${operation.lotLabel} en Viva Lago.`,
-    operation.status === "cancelled"
-      ? "Queria retomar el seguimiento de tu operacion anulada."
-      : "Queria continuar el seguimiento comercial de tu operacion.",
-    "Quedo atento para coordinar los proximos pasos."
-  ].join(" ");
-
-  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
 function getInstallmentTone(status: InstallmentStatus) {
