@@ -29,6 +29,7 @@ type AdminClientProfileModalProps = {
   onOpenOperation: (saleId: string) => void;
   onRegisterPayment: (saleId: string) => void;
   sales: SaleOperationRecord[];
+  startEditing?: boolean;
 };
 
 type ClientFormState = {
@@ -57,7 +58,8 @@ export function AdminClientProfileModal({
   onClose,
   onOpenOperation,
   onRegisterPayment,
-  sales
+  sales,
+  startEditing = false
 }: AdminClientProfileModalProps) {
   const { user } = useAuth();
   const [documents, setDocuments] = useState<ClientDocumentRecord[]>([]);
@@ -70,10 +72,10 @@ export function AdminClientProfileModal({
 
   useEffect(() => {
     setForm(buildClientForm(client));
-    setEditing(false);
+    setEditing(startEditing);
     setError(null);
     setIsHistoryExpanded(false);
-  }, [client]);
+  }, [client, startEditing]);
 
   useEffect(() => {
     return subscribeToClientDocuments(
